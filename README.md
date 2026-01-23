@@ -20,4 +20,4 @@ Scandium's settings can be found in **Options > Video Settings > Scandium**.
 
 ## License
 
-This project is licensed under the CC0-1.0 License.
+This project is licensed under the MIT License.
