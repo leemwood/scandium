@@ -21,7 +21,7 @@
 		"client": [
 			"cn.lemwood.client.ScandiumClient"
 		],
-		"sodium": [
+		"sodium:config_api_user": [
 			"cn.lemwood.client.integration.SodiumIntegration"
 		]
 	},

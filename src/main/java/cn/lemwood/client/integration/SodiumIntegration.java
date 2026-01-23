@@ -24,18 +24,16 @@ public class SodiumIntegration implements ConfigEntryPoint {
         OptionGroupBuilder general = builder.createOptionGroup();
         general.setName(Text.literal("General"));
 
-        BooleanOptionBuilder enabledOption = builder.createBooleanOption(Identifier.of("scandium", "enabled"))
+        general.addOption(builder.createBooleanOption(Identifier.of("scandium", "enabled"))
                 .setName(Text.translatable("scandium.option.enabled"))
                 .setTooltip(Text.translatable("scandium.option.enabled.tooltip"))
                 .setBinding(v -> { config.enabled = v; config.save(); }, () -> config.enabled)
-                .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD);
-        general.addOption(enabledOption);
+                .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD));
 
-        BooleanOptionBuilder syncOption = builder.createBooleanOption(Identifier.of("scandium", "sync_with_sodium"))
+        general.addOption(builder.createBooleanOption(Identifier.of("scandium", "sync_with_sodium"))
                 .setName(Text.translatable("scandium.option.sync_with_sodium"))
                 .setTooltip(Text.translatable("scandium.option.sync_with_sodium.tooltip"))
-                .setBinding(v -> { config.syncWithSodium = v; config.save(); }, () -> config.syncWithSodium);
-        general.addOption(syncOption);
+                .setBinding(v -> { config.syncWithSodium = v; config.save(); }, () -> config.syncWithSodium));
 
         page.addOptionGroup(general);
 
@@ -43,31 +41,27 @@ public class SodiumIntegration implements ConfigEntryPoint {
         OptionGroupBuilder culling = builder.createOptionGroup();
         culling.setName(Text.literal("Culling"));
 
-        BooleanOptionBuilder fovCullingOption = builder.createBooleanOption(Identifier.of("scandium", "fov_culling"))
+        culling.addOption(builder.createBooleanOption(Identifier.of("scandium", "fov_culling"))
                 .setName(Text.translatable("scandium.option.fov_culling"))
                 .setTooltip(Text.translatable("scandium.option.fov_culling.tooltip"))
-                .setBinding(v -> { config.fovCullingEnabled = v; config.save(); }, () -> config.fovCullingEnabled);
-        culling.addOption(fovCullingOption);
+                .setBinding(v -> { config.fovCullingEnabled = v; config.save(); }, () -> config.fovCullingEnabled));
 
-        IntegerOptionBuilder fovAngleOption = builder.createIntegerOption(Identifier.of("scandium", "fov_angle"))
+        culling.addOption(builder.createIntegerOption(Identifier.of("scandium", "fov_angle"))
                 .setName(Text.translatable("scandium.option.fov_angle"))
                 .setTooltip(Text.translatable("scandium.option.fov_angle.tooltip"))
                 .setRange(70, 150, 5)
                 .setValueFormatter(v -> Text.literal(String.valueOf(v)))
-                .setBinding(v -> { config.fovAngle = v; config.save(); }, () -> config.fovAngle);
-        culling.addOption(fovAngleOption);
+                .setBinding(v -> { config.fovAngle = v; config.save(); }, () -> config.fovAngle));
 
-        BooleanOptionBuilder mountainCullingOption = builder.createBooleanOption(Identifier.of("scandium", "mountain_culling"))
+        culling.addOption(builder.createBooleanOption(Identifier.of("scandium", "mountain_culling"))
                 .setName(Text.translatable("scandium.option.mountain_culling"))
                 .setTooltip(Text.translatable("scandium.option.mountain_culling.tooltip"))
-                .setBinding(v -> { config.aggressiveMountainCulling = v; config.save(); }, () -> config.aggressiveMountainCulling);
-        culling.addOption(mountainCullingOption);
+                .setBinding(v -> { config.aggressiveMountainCulling = v; config.save(); }, () -> config.aggressiveMountainCulling));
 
-        BooleanOptionBuilder transparencyOption = builder.createBooleanOption(Identifier.of("scandium", "transparency_awareness"))
+        culling.addOption(builder.createBooleanOption(Identifier.of("scandium", "transparency_awareness"))
                 .setName(Text.translatable("scandium.option.transparency_awareness"))
                 .setTooltip(Text.translatable("scandium.option.transparency_awareness.tooltip"))
-                .setBinding(v -> { config.transparencyAwareness = v; config.save(); }, () -> config.transparencyAwareness);
-        culling.addOption(transparencyOption);
+                .setBinding(v -> { config.transparencyAwareness = v; config.save(); }, () -> config.transparencyAwareness));
 
         page.addOptionGroup(culling);
 
@@ -75,27 +69,24 @@ public class SodiumIntegration implements ConfigEntryPoint {
         OptionGroupBuilder advanced = builder.createOptionGroup();
         advanced.setName(Text.literal("Advanced"));
 
-        IntegerOptionBuilder reservedHeightOption = builder.createIntegerOption(Identifier.of("scandium", "reserved_height"))
+        advanced.addOption(builder.createIntegerOption(Identifier.of("scandium", "reserved_height"))
                 .setName(Text.translatable("scandium.option.reserved_height"))
                 .setTooltip(Text.translatable("scandium.option.reserved_height.tooltip"))
                 .setRange(0, 10, 1)
                 .setValueFormatter(v -> Text.literal(String.valueOf(v)))
-                .setBinding(v -> { config.reservedHeight = v; config.save(); }, () -> config.reservedHeight);
-        advanced.addOption(reservedHeightOption);
+                .setBinding(v -> { config.reservedHeight = v; config.save(); }, () -> config.reservedHeight));
 
-        IntegerOptionBuilder updateSpeedOption = builder.createIntegerOption(Identifier.of("scandium", "update_speed"))
+        advanced.addOption(builder.createIntegerOption(Identifier.of("scandium", "update_speed"))
                 .setName(Text.translatable("scandium.option.update_speed"))
                 .setTooltip(Text.translatable("scandium.option.update_speed.tooltip"))
                 .setRange(1, 100, 1)
                 .setValueFormatter(v -> Text.literal(String.valueOf(v)))
-                .setBinding(v -> { config.updateSpeed = v; config.save(); }, () -> config.updateSpeed);
-        advanced.addOption(updateSpeedOption);
+                .setBinding(v -> { config.updateSpeed = v; config.save(); }, () -> config.updateSpeed));
 
-        BooleanOptionBuilder debugModeOption = builder.createBooleanOption(Identifier.of("scandium", "debug_mode"))
+        advanced.addOption(builder.createBooleanOption(Identifier.of("scandium", "debug_mode"))
                 .setName(Text.translatable("scandium.option.debug_mode"))
                 .setTooltip(Text.translatable("scandium.option.debug_mode.tooltip"))
-                .setBinding(v -> { config.debugMode = v; config.save(); }, () -> config.debugMode);
-        advanced.addOption(debugModeOption);
+                .setBinding(v -> { config.debugMode = v; config.save(); }, () -> config.debugMode));
 
         page.addOptionGroup(advanced);
 
