@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "scandium",
+	"version": "${version}",
+	"name": "Scandium",
+	"description": "A high-performance rendering optimization mod for Fabric, featuring advanced culling techniques like FOV culling and aggressive mountain culling. Seamlessly integrated with Sodium.",
+	"authors": [
+		"Lemwood"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/scandium/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"cn.lemwood.Scandium"
+		],
+		"client": [
+			"cn.lemwood.client.ScandiumClient"
+		],
+		"sodium": [
+			"cn.lemwood.client.integration.SodiumIntegration"
+		]
+	},
+	"mixins": [
+		"scandium.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=${loader_version}",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=21",
+		"fabric-api": "*",
+		"sodium": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}

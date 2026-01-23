@@ -1,0 +1,60 @@
+package cn.lemwood.config;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import net.fabricmc.loader.api.FabricLoader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+
+public class ScandiumConfig {
+    private static final File CONFIG_FILE = new File(FabricLoader.getInstance().getConfigDir().toFile(), "scandium.json");
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+    public boolean enabled = true;
+    public int reservedHeight = 2;
+    public int fovAngle = 110;
+    public boolean debugMode = false;
+    public int updateSpeed = 20;
+    public boolean syncWithSodium = true;
+    public boolean fovCullingEnabled = true;
+    public boolean aggressiveMountainCulling = true;
+    public boolean transparencyAwareness = true;
+
+    private static ScandiumConfig instance;
+
+    public static ScandiumConfig getInstance() {
+        if (instance == null) {
+            load();
+        }
+        return instance;
+    }
+
+    public static void load() {
+        if (CONFIG_FILE.exists()) {
+            try (FileReader reader = new FileReader(CONFIG_FILE)) {
+                instance = GSON.fromJson(reader, ScandiumConfig.class);
+            } catch (IOException e) {
+                instance = new ScandiumConfig();
+            }
+        } else {
+            instance = new ScandiumConfig();
+            instance.save();
+        }
+    }
+
+    public void save() {
+        try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
+            GSON.toJson(this, writer);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void saveStatic() {
+        if (instance != null) {
+            instance.save();
+        }
+    }
+}

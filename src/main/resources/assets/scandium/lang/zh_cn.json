@@ -1,0 +1,22 @@
+{
+  "modmenu.description.scandium": "一个专为 Fabric 设计的高性能渲染优化模组，包含 FOV 裁剪、激进的山脉裁剪等先进技术，并与 Sodium 无缝集成。",
+  "scandium.options.title": "钪 (Scandium)",
+  "scandium.option.enabled": "启用模组",
+  "scandium.option.enabled.tooltip": "启用或禁用钪剔除引擎。",
+  "scandium.option.sync_with_sodium": "与钠同步",
+  "scandium.option.sync_with_sodium.tooltip": "将剔除缓存刷新与钠的渲染帧强制绑定，确保剔除逻辑与玩家坐标严格同步。",
+  "scandium.option.fov_culling": "FOV 视锥体剔除",
+  "scandium.option.fov_culling.tooltip": "剔除玩家视野之外的区块。",
+  "scandium.option.fov_angle": "FOV 剔除角度",
+  "scandium.option.fov_angle.tooltip": "FOV 剔除的角度阈值。数值越大越保守，可减少区块闪烁。",
+  "scandium.option.reserved_height": "预留高度",
+  "scandium.option.reserved_height.tooltip": "垂直剔除时的区块预留高度。数值越大越保守。",
+  "scandium.option.update_speed": "更新速度",
+  "scandium.option.update_speed.tooltip": "剔除缓存的更新频率。数值越高，剔除逻辑响应越快。",
+  "scandium.option.mountain_culling": "激进山体剔除",
+  "scandium.option.mountain_culling.tooltip": "在山地、地底或下界等环境下采用更激进的遮挡剔除逻辑。",
+  "scandium.option.transparency_awareness": "透明度感知",
+  "scandium.option.transparency_awareness.tooltip": "实时监测区块中的透明方块，防止水、玻璃等半透明区块被错误剔除。",
+  "scandium.option.debug_mode": "调试模式",
+  "scandium.option.debug_mode.tooltip": "在快捷栏上方显示实时剔除统计数据。"
+}

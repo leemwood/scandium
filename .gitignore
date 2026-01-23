@@ -1,0 +1,7 @@
+.gradle/
+build/
+.trae/
+
+*.log
+
+sodium_compatibility.md

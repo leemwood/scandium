@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cn.lemwood.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+  ],
+  "client": [
+    "MixinGraphOcclusionCuller"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

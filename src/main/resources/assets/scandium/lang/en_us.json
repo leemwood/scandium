@@ -1,0 +1,22 @@
+{
+  "modmenu.description.scandium": "A high-performance rendering optimization mod for Fabric, featuring advanced culling techniques like FOV culling and aggressive mountain culling. Seamlessly integrated with Sodium.",
+  "scandium.options.title": "Scandium",
+  "scandium.option.enabled": "Enabled",
+  "scandium.option.enabled.tooltip": "Enables or disables the Scandium culling engine.",
+  "scandium.option.sync_with_sodium": "Sync with Sodium",
+  "scandium.option.sync_with_sodium.tooltip": "Synchronizes the culling cache with Sodium's rendering frame.",
+  "scandium.option.fov_culling": "FOV Culling",
+  "scandium.option.fov_culling.tooltip": "Culls chunks that are outside the player's field of view.",
+  "scandium.option.fov_angle": "FOV Angle",
+  "scandium.option.fov_angle.tooltip": "The angle for FOV culling. Higher values are safer.",
+  "scandium.option.reserved_height": "Reserved Height",
+  "scandium.option.reserved_height.tooltip": "The height offset for vertical culling in chunks.",
+  "scandium.option.update_speed": "Update Speed",
+  "scandium.option.update_speed.tooltip": "How frequently the culling cache is updated.",
+  "scandium.option.mountain_culling": "Aggressive Mountain Culling",
+  "scandium.option.mountain_culling.tooltip": "More aggressively culls chunks behind mountains or under ceilings.",
+  "scandium.option.transparency_awareness": "Transparency Awareness",
+  "scandium.option.transparency_awareness.tooltip": "Prevents culling of transparent or semi-transparent chunks.",
+  "scandium.option.debug_mode": "Debug Mode",
+  "scandium.option.debug_mode.tooltip": "Displays culling statistics in the action bar."
+}
