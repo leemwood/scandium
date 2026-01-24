@@ -14,7 +14,7 @@ public class ScandiumConfig {
 
     public boolean enabled = true;
     public int reservedHeight = 2;
-    public int fovAngle = 110;
+    public int fovAngle = 130;
     public boolean debugMode = false;
     public int updateSpeed = 20;
     public boolean syncWithSodium = true;

@@ -2,13 +2,20 @@ package cn.lemwood.client.util;
 
 import cn.lemwood.client.ScandiumClient;
 import cn.lemwood.config.ScandiumConfig;
+import cn.lemwood.mixin.CameraAccessor;
 import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.Camera;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.util.math.*;
+import net.minecraft.world.attribute.EnvironmentAttributes;
+import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkStatus;
@@ -21,7 +28,8 @@ public class CullingUtils {
     private static int cachedPlayerSurfaceY;
     private static int cachedPlayerCeilingY;
     private static boolean cachedPlayerUnderground;
-    private static double cachedPlayerX, cachedPlayerY, cachedPlayerZ;
+    private static double cachedCameraX, cachedCameraY, cachedCameraZ;
+    private static Vec3d cachedLookVector;
     private static boolean isNether;
     private static boolean hasCeiling;
     private static double fovCosineThreshold;
@@ -31,6 +39,7 @@ public class CullingUtils {
 
     static {
         cachedHeights.defaultReturnValue(-1);
+        cachedLookVector = new Vec3d(0, 0, 1);
     }
 
     public static void resetCache() {
@@ -44,86 +53,83 @@ public class CullingUtils {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.world == null) return false;
 
+        // Spectator mode support: disable culling for spectators to prevent visual glitches when moving through blocks
+        if (client.player.isSpectator()) return false;
+
         ScandiumConfig config = ScandiumConfig.getInstance();
         if (!config.enabled) return false;
         
-        double cameraX = client.player.getX();
-        double cameraY = client.player.getEyeY();
-        double cameraZ = client.player.getZ();
+        Camera camera = client.gameRenderer.getCamera();
+        Vec3d cameraPos = ((CameraAccessor) camera).getPos();
+        double cameraX = cameraPos.x;
+        double cameraY = cameraPos.y;
+        double cameraZ = cameraPos.z;
 
-        long currentTime = client.world.getTime();
-        boolean shouldUpdate;
-        if (config.syncWithSodium) {
-            shouldUpdate = (currentTime != lastCacheTime);
-        } else {
-            int interval = Math.max(1, 21 - config.updateSpeed);
-            shouldUpdate = (currentTime - lastCacheTime >= interval || lastCacheTime == -1);
+        if (client.world != cachedWorld) {
+            cachedWorld = client.world;
+            isNether = client.world.getDimensionEntry().value().attributes().containsKey(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY);
+            hasCeiling = client.world.getDimensionEntry().value().hasCeiling();
+            cachedHeights.clear();
+            cachedTransparency.clear();
+            // Clear camera cache on world change to force update
+            lastCacheTime = -1;
         }
+        float currentYaw = camera.getYaw();
+        float currentPitch = camera.getPitch();
 
-        if (shouldUpdate || cachedWorld != client.world) {
-            if (cachedWorld != client.world) {
-                resetCache();
-                cachedWorld = client.world;
-                isNether = client.world.getRegistryKey().getValue().getPath().contains("nether");
-                hasCeiling = client.world.getDimension().hasCeiling();
+        double dx = cameraX - cachedCameraX;
+        double dy = cameraY - cachedCameraY;
+        double dz = cameraZ - cachedCameraZ;
+        boolean shouldUpdate = (System.currentTimeMillis() - lastCacheTime) > 1000;
+        boolean rotationChanged = currentYaw != lastYaw || currentPitch != lastPitch;
+
+        if (dx * dx + dy * dy + dz * dz > 0.25 || shouldUpdate || rotationChanged) {
+            cachedCameraX = cameraX;
+            cachedCameraY = cameraY;
+            cachedCameraZ = cameraZ;
+            cachedLookVector = Vec3d.fromPolar(currentPitch, currentYaw);
+            lastCacheTime = System.currentTimeMillis();
+
+            int px = MathHelper.floor(cameraX);
+            int pz = MathHelper.floor(cameraZ);
+            cachedPlayerSurfaceY = getReliableSurfaceY(client.world, px, pz);
+
+            // 更严格的地下判定：必须在地表 12 格以下，且无法直接看到天空
+            boolean skyVisible = client.world.isSkyVisible(new BlockPos(px, MathHelper.floor(cameraY), pz));
+            cachedPlayerUnderground = !skyVisible && cameraY < (double) (cachedPlayerSurfaceY - 12);
+
+            if (isNether) {
+                cachedPlayerCeilingY = 120;
             }
-            lastCacheTime = currentTime;
-            
-            // Only re-calculate surface and underground status if player moved significantly or time passed
-            double dx = cameraX - cachedPlayerX;
-            double dy = cameraY - cachedPlayerY;
-            double dz = cameraZ - cachedPlayerZ;
-            
-            float currentYaw = client.player.getYaw();
-            float currentPitch = client.player.getPitch();
-            boolean rotationChanged = currentYaw != lastYaw || currentPitch != lastPitch;
 
-            if (dx*dx + dy*dy + dz*dz > 0.25 || shouldUpdate || rotationChanged) {
-                cachedPlayerX = cameraX;
-                cachedPlayerY = cameraY;
-                cachedPlayerZ = cameraZ;
-                
-                int px = MathHelper.floor(cameraX);
-                int pz = MathHelper.floor(cameraZ);
-                cachedPlayerSurfaceY = getReliableSurfaceY(client.world, px, pz);
-                
-                // 更严格的地下判定：必须在地表 12 格以下，且无法直接看到天空
-                boolean skyVisible = client.world.isSkyVisible(new BlockPos(px, MathHelper.floor(cameraY), pz));
-                cachedPlayerUnderground = !skyVisible && cameraY < (double) (cachedPlayerSurfaceY - 12);
-                
-                if (isNether) {
-                    cachedPlayerCeilingY = 120;
-                }
+            int renderDistance = client.options.getClampedViewDistance();
+            cachedReservedHeight = Math.min(config.reservedHeight, renderDistance) << 4;
 
-                int renderDistance = client.options.getClampedViewDistance();
-                cachedReservedHeight = Math.min(config.reservedHeight, renderDistance) << 4;
+            // Rotation-aware FOV logic
+            float dyaw = Math.abs(currentYaw - lastYaw);
+            if (dyaw > 180) dyaw = 360 - dyaw;
+            float dpitch = Math.abs(currentPitch - lastPitch);
+            double rotationSpeed = Math.sqrt(dyaw * dyaw + dpitch * dpitch);
 
-                // Rotation-aware FOV logic
-                float dyaw = Math.abs(currentYaw - lastYaw);
-                if (dyaw > 180) dyaw = 360 - dyaw;
-                float dpitch = Math.abs(currentPitch - lastPitch);
-                double rotationSpeed = Math.sqrt(dyaw * dyaw + dpitch * dpitch);
+            if (rotationSpeed > smoothedRotationFactor) {
+                smoothedRotationFactor = rotationSpeed;
+            } else {
+                smoothedRotationFactor *= 0.85; // Faster decay for better precision when stable
+            }
+            lastYaw = currentYaw;
+            lastPitch = currentPitch;
 
-                if (rotationSpeed > smoothedRotationFactor) {
-                    smoothedRotationFactor = rotationSpeed;
-                } else {
-                    smoothedRotationFactor *= 0.85; // Faster decay for better precision when stable
-                }
-                lastYaw = currentYaw;
-                lastPitch = currentPitch;
+            double baseFov = config.fovAngle;
+            // Add extra margin for fast rotation and chunk size at edges
+            double dynamicMargin = Math.min(60.0, smoothedRotationFactor * 4.0);
+            double totalFov = baseFov + dynamicMargin + 12.0; // 12 degrees constant safety margin
 
-                double baseFov = config.fovAngle;
-                // Add extra margin for fast rotation to prevent flickering
-                double dynamicMargin = Math.min(50.0, smoothedRotationFactor * 3.0);
-                double totalFov = baseFov + dynamicMargin;
-                
-                double halfFovRad = Math.toRadians(totalFov / 2.0);
-                fovCosineThreshold = Math.cos(halfFovRad);
+            double halfFovRad = Math.toRadians(totalFov / 2.0);
+            fovCosineThreshold = Math.cos(halfFovRad);
 
-                if (config.debugMode) {
-                    ScandiumClient.debugCachedSurfaceY = cachedPlayerSurfaceY;
-                    ScandiumClient.debugCachedUnderground = cachedPlayerUnderground;
-                }
+            if (config.debugMode) {
+                ScandiumClient.debugCachedSurfaceY = cachedPlayerSurfaceY;
+                ScandiumClient.debugCachedUnderground = cachedPlayerUnderground;
             }
         }
 
@@ -141,19 +147,22 @@ public class CullingUtils {
 
         // 2. FOV Culling
         if (config.fovCullingEnabled) {
-            Vec3d look = client.player.getRotationVec(1.0F);
+            Vec3d look = cachedLookVector;
+            if (look == null) {
+                look = Vec3d.fromPolar(camera.getPitch(), camera.getYaw());
+            }
             double centerX = box.minX + 8.0;
             double centerY = box.minY + 8.0;
             double centerZ = box.minZ + 8.0;
             
-            double dx = centerX - cameraX;
-            double dy = centerY - cameraY;
-            double dz = centerZ - cameraZ;
-            double distSq = dx*dx + dy*dy + dz*dz;
+            double dx_chunk = centerX - cameraX;
+            double dy_chunk = centerY - cameraY;
+            double dz_chunk = centerZ - cameraZ;
+            double distSq = dx_chunk*dx_chunk + dy_chunk*dy_chunk + dz_chunk*dz_chunk;
             
-            if (distSq > 256) {
+            if (distSq > 400) { // Increased minimum distance to 20 blocks to avoid edge issues nearby
                 double invDist = 1.0 / Math.sqrt(distSq);
-                double dot = (look.x * dx + look.y * dy + look.z * dz) * invDist;
+                double dot = (look.x * dx_chunk + look.y * dy_chunk + look.z * dz_chunk) * invDist;
                 
                 if (dot < fovCosineThreshold) {
                     if (config.debugMode) {
@@ -185,9 +194,9 @@ public class CullingUtils {
             } else if (cachedPlayerUnderground) {
                 // 使用区块自身的表面高度判定，防止在山脚下误剔除山顶
                 if (box.minY > (double) (surfaceY + 8)) {
-                    double dx = (box.minX + 8.0) - cameraX;
-                    double dz = (box.minZ + 8.0) - cameraZ;
-                    if (dx*dx + dz*dz > 1024) {
+                    double dx_mountain = (box.minX + 8.0) - cameraX;
+                    double dz_mountain = (box.minZ + 8.0) - cameraZ;
+                    if (dx_mountain * dx_mountain + dz_mountain * dz_mountain > 1024) {
                         markCulled(config, "mountain");
                         return true;
                     }
