@@ -27,13 +27,15 @@ public class SodiumIntegration implements ConfigEntryPoint {
         general.addOption(builder.createBooleanOption(Identifier.of("scandium", "enabled"))
                 .setName(Text.translatable("scandium.option.enabled"))
                 .setTooltip(Text.translatable("scandium.option.enabled.tooltip"))
-                .setBinding(v -> { config.enabled = v; config.save(); }, () -> config.enabled)
+                .setStorageHandler(config::save)
+                .setBinding(v -> config.enabled = v, () -> config.enabled)
                 .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD));
 
         general.addOption(builder.createBooleanOption(Identifier.of("scandium", "sync_with_sodium"))
                 .setName(Text.translatable("scandium.option.sync_with_sodium"))
                 .setTooltip(Text.translatable("scandium.option.sync_with_sodium.tooltip"))
-                .setBinding(v -> { config.syncWithSodium = v; config.save(); }, () -> config.syncWithSodium));
+                .setStorageHandler(config::save)
+                .setBinding(v -> config.syncWithSodium = v, () -> config.syncWithSodium));
 
         page.addOptionGroup(general);
 
@@ -44,24 +46,28 @@ public class SodiumIntegration implements ConfigEntryPoint {
         culling.addOption(builder.createBooleanOption(Identifier.of("scandium", "fov_culling"))
                 .setName(Text.translatable("scandium.option.fov_culling"))
                 .setTooltip(Text.translatable("scandium.option.fov_culling.tooltip"))
-                .setBinding(v -> { config.fovCullingEnabled = v; config.save(); }, () -> config.fovCullingEnabled));
+                .setStorageHandler(config::save)
+                .setBinding(v -> config.fovCullingEnabled = v, () -> config.fovCullingEnabled));
 
         culling.addOption(builder.createIntegerOption(Identifier.of("scandium", "fov_angle"))
                 .setName(Text.translatable("scandium.option.fov_angle"))
                 .setTooltip(Text.translatable("scandium.option.fov_angle.tooltip"))
                 .setRange(70, 150, 5)
+                .setStorageHandler(config::save)
                 .setValueFormatter(v -> Text.literal(String.valueOf(v)))
-                .setBinding(v -> { config.fovAngle = v; config.save(); }, () -> config.fovAngle));
+                .setBinding(v -> config.fovAngle = v, () -> config.fovAngle));
 
         culling.addOption(builder.createBooleanOption(Identifier.of("scandium", "mountain_culling"))
                 .setName(Text.translatable("scandium.option.mountain_culling"))
                 .setTooltip(Text.translatable("scandium.option.mountain_culling.tooltip"))
-                .setBinding(v -> { config.aggressiveMountainCulling = v; config.save(); }, () -> config.aggressiveMountainCulling));
+                .setStorageHandler(config::save)
+                .setBinding(v -> config.aggressiveMountainCulling = v, () -> config.aggressiveMountainCulling));
 
         culling.addOption(builder.createBooleanOption(Identifier.of("scandium", "transparency_awareness"))
                 .setName(Text.translatable("scandium.option.transparency_awareness"))
                 .setTooltip(Text.translatable("scandium.option.transparency_awareness.tooltip"))
-                .setBinding(v -> { config.transparencyAwareness = v; config.save(); }, () -> config.transparencyAwareness));
+                .setStorageHandler(config::save)
+                .setBinding(v -> config.transparencyAwareness = v, () -> config.transparencyAwareness));
 
         page.addOptionGroup(culling);
 
@@ -73,20 +79,23 @@ public class SodiumIntegration implements ConfigEntryPoint {
                 .setName(Text.translatable("scandium.option.reserved_height"))
                 .setTooltip(Text.translatable("scandium.option.reserved_height.tooltip"))
                 .setRange(0, 10, 1)
+                .setStorageHandler(config::save)
                 .setValueFormatter(v -> Text.literal(String.valueOf(v)))
-                .setBinding(v -> { config.reservedHeight = v; config.save(); }, () -> config.reservedHeight));
+                .setBinding(v -> config.reservedHeight = v, () -> config.reservedHeight));
 
         advanced.addOption(builder.createIntegerOption(Identifier.of("scandium", "update_speed"))
                 .setName(Text.translatable("scandium.option.update_speed"))
                 .setTooltip(Text.translatable("scandium.option.update_speed.tooltip"))
                 .setRange(1, 100, 1)
+                .setStorageHandler(config::save)
                 .setValueFormatter(v -> Text.literal(String.valueOf(v)))
-                .setBinding(v -> { config.updateSpeed = v; config.save(); }, () -> config.updateSpeed));
+                .setBinding(v -> config.updateSpeed = v, () -> config.updateSpeed));
 
         advanced.addOption(builder.createBooleanOption(Identifier.of("scandium", "debug_mode"))
                 .setName(Text.translatable("scandium.option.debug_mode"))
                 .setTooltip(Text.translatable("scandium.option.debug_mode.tooltip"))
-                .setBinding(v -> { config.debugMode = v; config.save(); }, () -> config.debugMode));
+                .setStorageHandler(config::save)
+                .setBinding(v -> config.debugMode = v, () -> config.debugMode));
 
         page.addOptionGroup(advanced);
 
