@@ -5,6 +5,8 @@
   "scandium.option.enabled.tooltip": "启用或禁用钪剔除引擎。",
   "scandium.option.sync_with_sodium": "与钠同步",
   "scandium.option.sync_with_sodium.tooltip": "将剔除缓存刷新与钠的渲染帧强制绑定，确保剔除逻辑与玩家坐标严格同步。",
+  "scandium.option.ignore_spectator_mode": "忽略旁观者模式",
+  "scandium.option.ignore_spectator_mode.tooltip": "默认开启。开启后，在旁观者模式下依然执行剔除逻辑。关闭则会在旁观者模式下禁用剔除以防穿墙时的视觉异常。",
   "scandium.option.fov_culling": "FOV 视锥体剔除",
   "scandium.option.fov_culling.tooltip": "剔除玩家视野之外的区块。",
   "scandium.option.fov_angle": "FOV 剔除角度",
@@ -17,6 +19,12 @@
   "scandium.option.mountain_culling.tooltip": "在山地、地底或下界等环境下采用更激进的遮挡剔除逻辑。",
   "scandium.option.transparency_awareness": "透明度感知",
   "scandium.option.transparency_awareness.tooltip": "实时监测区块中的透明方块，防止水、玻璃等半透明区块被错误剔除。",
+  "scandium.option.aggressive_vertical_culling": "激进垂直剔除",
+  "scandium.option.aggressive_vertical_culling.tooltip": "默认关闭。开启后将采用更激进的垂直剔除策略，在保证地底渲染性能的同时可能会在特定复杂地形下产生极少量的区块闪烁。",
+  "scandium.option.underground_horizontal_culling": "地底横向剔除",
+  "scandium.option.underground_horizontal_culling.tooltip": "玩家在地底深处时，限制横向渲染距离以大幅提升性能。因为在地底视角通常受限，远处的横向区块大多不可见。",
+  "scandium.option.underground_horizontal_distance": "地底横向距离",
+  "scandium.option.underground_horizontal_distance.tooltip": "地底横向剔除的生效半径（单位：区块）。数值越小性能越强，但可能在大型溶洞边缘看到空气。",
   "scandium.option.debug_mode": "调试模式",
   "scandium.option.debug_mode.tooltip": "在快捷栏上方显示实时剔除统计数据。"
 }

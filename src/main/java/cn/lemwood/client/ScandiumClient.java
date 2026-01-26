@@ -90,20 +90,36 @@ public class ScandiumClient implements ClientModInitializer {
             if (ScandiumConfig.getInstance().debugMode && client.player != null) {
                 tickCounter++;
                 if (tickCounter >= 20) {
-                    String text = "Scandium Debug: " + 
+                    String text = "Scandium | " + 
                         "Total: " + TOTAL_CHECKED + " | " +
                         "FOV: " + CULLED_FOV + " | " +
                         "Vert: " + CULLED_VERTICAL + " | " +
-                        "Mtn: " + CULLED_MOUNTAIN;
+                        "Mtn: " + CULLED_MOUNTAIN + " | " +
+                        "Y: " + (int)client.player.getY() + " (S:" + debugCachedSurfaceY + ") | " +
+                        "UG: " + debugCachedUnderground;
                     client.player.sendMessage(Text.literal(text), true);
-                    tickCounter = 0;
                     
-                    // Reset counters
+                    tickCounter = 0;
                     TOTAL_CHECKED = 0;
                     CULLED_FOV = 0;
                     CULLED_VERTICAL = 0;
                     CULLED_MOUNTAIN = 0;
+                    CULLED_BACK = 0;
+                    CULLED_COUNT = 0;
                 }
+            } else {
+                TOTAL_CHECKED = 0;
+                CULLED_FOV = 0;
+                CULLED_VERTICAL = 0;
+                CULLED_MOUNTAIN = 0;
+                CULLED_BACK = 0;
+                CULLED_COUNT = 0;
+                HUD_TOTAL_CHECKED = 0;
+                HUD_CULLED_FOV = 0;
+                HUD_CULLED_VERTICAL = 0;
+                HUD_CULLED_MOUNTAIN = 0;
+                HUD_CULLED_BACK = 0;
+                HUD_CULLED_COUNT = 0;
             }
         });
     }

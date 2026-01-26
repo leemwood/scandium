@@ -53,11 +53,11 @@ public class CullingUtils {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.world == null) return false;
 
-        // Spectator mode support: disable culling for spectators to prevent visual glitches when moving through blocks
-        if (client.player.isSpectator()) return false;
-
         ScandiumConfig config = ScandiumConfig.getInstance();
         if (!config.enabled) return false;
+
+        // Spectator mode support: disable culling for spectators to prevent visual glitches when moving through blocks
+        if (client.player.isSpectator() && !config.ignoreSpectatorMode) return false;
         
         Camera camera = client.gameRenderer.getCamera();
         Vec3d cameraPos = ((CameraAccessor) camera).getPos();
@@ -65,22 +65,30 @@ public class CullingUtils {
         double cameraY = cameraPos.y;
         double cameraZ = cameraPos.z;
 
+        long currentTime = client.world.getTime();
+        boolean shouldUpdate;
+        if (config.syncWithSodium) {
+            shouldUpdate = (currentTime != lastCacheTime);
+        } else {
+            int interval = Math.max(1, 21 - (config.updateSpeed / 5)); // Scaled to game ticks
+            shouldUpdate = (currentTime - lastCacheTime >= interval || lastCacheTime == -1);
+        }
+
         if (client.world != cachedWorld) {
             cachedWorld = client.world;
             isNether = client.world.getDimensionEntry().value().attributes().containsKey(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY);
             hasCeiling = client.world.getDimensionEntry().value().hasCeiling();
             cachedHeights.clear();
             cachedTransparency.clear();
-            // Clear camera cache on world change to force update
             lastCacheTime = -1;
         }
+
         float currentYaw = camera.getYaw();
         float currentPitch = camera.getPitch();
 
         double dx = cameraX - cachedCameraX;
         double dy = cameraY - cachedCameraY;
         double dz = cameraZ - cachedCameraZ;
-        boolean shouldUpdate = (System.currentTimeMillis() - lastCacheTime) > 1000;
         boolean rotationChanged = currentYaw != lastYaw || currentPitch != lastPitch;
 
         if (dx * dx + dy * dy + dz * dz > 0.25 || shouldUpdate || rotationChanged) {
@@ -88,22 +96,25 @@ public class CullingUtils {
             cachedCameraY = cameraY;
             cachedCameraZ = cameraZ;
             cachedLookVector = Vec3d.fromPolar(currentPitch, currentYaw);
-            lastCacheTime = System.currentTimeMillis();
+            lastCacheTime = currentTime;
 
             int px = MathHelper.floor(cameraX);
             int pz = MathHelper.floor(cameraZ);
             cachedPlayerSurfaceY = getReliableSurfaceY(client.world, px, pz);
-
-            // 更严格的地下判定：必须在地表 12 格以下，且无法直接看到天空
-            boolean skyVisible = client.world.isSkyVisible(new BlockPos(px, MathHelper.floor(cameraY), pz));
-            cachedPlayerUnderground = !skyVisible && cameraY < (double) (cachedPlayerSurfaceY - 12);
-
+            
+            // 更灵活的地下判定：光照等级低或处于地表以下且无天空光
+            BlockPos playerPos = new BlockPos(px, MathHelper.floor(cameraY), pz);
+            int skyLight = client.world.getLightLevel(net.minecraft.world.LightType.SKY, playerPos);
+            cachedPlayerUnderground = (skyLight < 8 && cameraY < (double) (cachedPlayerSurfaceY - 4)) || cameraY < (double) (cachedPlayerSurfaceY - 16);
+            
             if (isNether) {
+                cachedPlayerUnderground = true; // 下界始终视为地下
                 cachedPlayerCeilingY = 120;
             }
 
             int renderDistance = client.options.getClampedViewDistance();
-            cachedReservedHeight = Math.min(config.reservedHeight, renderDistance) << 4;
+            // 每单位 reservedHeight 现在代表 8 格（半个区块高度）
+            cachedReservedHeight = Math.min(config.reservedHeight, renderDistance * 2) * 8;
 
             // Rotation-aware FOV logic
             float dyaw = Math.abs(currentYaw - lastYaw);
@@ -120,10 +131,14 @@ public class CullingUtils {
             lastPitch = currentPitch;
 
             double baseFov = config.fovAngle;
-            // Add extra margin for fast rotation and chunk size at edges
             double dynamicMargin = Math.min(60.0, smoothedRotationFactor * 4.0);
-            double totalFov = baseFov + dynamicMargin + 12.0; // 12 degrees constant safety margin
-
+            double safetyMargin = 12.0;
+            if (cachedPlayerUnderground) {
+                dynamicMargin = Math.min(20.0, smoothedRotationFactor * 2.0);
+                safetyMargin = 6.0;
+            }
+            double totalFov = baseFov + dynamicMargin + safetyMargin;
+            
             double halfFovRad = Math.toRadians(totalFov / 2.0);
             fovCosineThreshold = Math.cos(halfFovRad);
 
@@ -160,11 +175,22 @@ public class CullingUtils {
             double dz_chunk = centerZ - cameraZ;
             double distSq = dx_chunk*dx_chunk + dy_chunk*dy_chunk + dz_chunk*dz_chunk;
             
-            if (distSq > 400) { // Increased minimum distance to 20 blocks to avoid edge issues nearby
+            // 矿洞环境下 FOV 剔除更激进：减小最小生效距离
+            double minFovDistSq = cachedPlayerUnderground ? 64 : 400; // 地底 8 格外即生效，地表 20 格
+            
+            if (distSq > minFovDistSq) { 
                 double invDist = 1.0 / Math.sqrt(distSq);
                 double dot = (look.x * dx_chunk + look.y * dy_chunk + look.z * dz_chunk) * invDist;
                 
-                if (dot < fovCosineThreshold) {
+                // 地底使用更严格的阈值（减少冗余）
+                double currentThreshold = fovCosineThreshold;
+                if (cachedPlayerUnderground && config.aggressiveVerticalCulling) {
+                    // 在地底且开启激进模式时，进一步收紧 FOV 判定
+                    double tightenedFov = config.fovAngle + 8.0; // 仅保留 8 度固定冗余
+                    currentThreshold = Math.cos(Math.toRadians(tightenedFov / 2.0));
+                }
+                
+                if (dot < currentThreshold) {
                     if (config.debugMode) {
                         ScandiumClient.CULLED_COUNT++;
                         ScandiumClient.CULLED_FOV++;
@@ -196,7 +222,17 @@ public class CullingUtils {
                 if (box.minY > (double) (surfaceY + 8)) {
                     double dx_mountain = (box.minX + 8.0) - cameraX;
                     double dz_mountain = (box.minZ + 8.0) - cameraZ;
+                    double dy_mountain = (box.minY + 8.0) - cameraY;
                     if (dx_mountain * dx_mountain + dz_mountain * dz_mountain > 1024) {
+                        // 视角保护：即使判定为“山脉以上”，如果在视角内也必须渲染
+                        Vec3d look = cachedLookVector;
+                        if (look == null) look = Vec3d.fromPolar(camera.getPitch(), camera.getYaw());
+                        double dist = Math.sqrt(dx_mountain * dx_mountain + dy_mountain * dy_mountain + dz_mountain * dz_mountain);
+                        if (dist > 0.1) {
+                            double dot = (look.x * dx_mountain + look.y * dy_mountain + look.z * dz_mountain) / dist;
+                            if (dot >= fovCosineThreshold) return false;
+                        }
+                        
                         markCulled(config, "mountain");
                         return true;
                     }
@@ -216,18 +252,69 @@ public class CullingUtils {
 
         if (!cachedPlayerUnderground) {
             // 玩家在户外时，垂直剔除应极其保守，防止剔除山体中的矿洞入口
-            if (box.maxY < (double) (surfaceY - 64) && box.maxY < cameraY - 64) {
+            int verticalOffset = config.aggressiveVerticalCulling ? 32 : 64;
+            if (box.maxY < (double) (surfaceY - verticalOffset) && box.maxY < cameraY - verticalOffset) {
                 markCulled(config, "vertical");
                 return true;
             }
         } else {
+            // 地底横向剔除逻辑：性能优先 + 视角绝对保护
+            if (config.undergroundHorizontalCulling) {
+                double dx_u = (box.minX + 8.0) - cameraX;
+                double dz_u = (box.minZ + 8.0) - cameraZ;
+                double horizontalDistSq = dx_u * dx_u + dz_u * dz_u;
+                double maxHorizontalDist = config.undergroundHorizontalDistance << 4; // 转换区块为格数
+                
+                if (horizontalDistSq > maxHorizontalDist * maxHorizontalDist) {
+                    // 计算区块相对于视角的点积，用于判定是否在视角内
+                    Vec3d look = cachedLookVector;
+                    if (look == null) look = Vec3d.fromPolar(camera.getPitch(), camera.getYaw());
+                    
+                    double dy_u = (box.minY + 8.0) - cameraY;
+                    double dist = Math.sqrt(horizontalDistSq + dy_u * dy_u);
+                    double dot = 0;
+                    if (dist > 0.1) {
+                        dot = (look.x * dx_u + look.y * dy_u + look.z * dz_u) / dist;
+                    }
+
+                    // 核心逻辑：如果区块在视角范围内（使用 fovCosineThreshold，包含旋转补偿和安全余量），则必须渲染
+                    // 这确保了玩家看到的任何东西都不会被横向剔除切掉
+                    if (dot >= fovCosineThreshold) {
+                        // 在视角内，即使超过了地下横向距离限制，也允许渲染
+                    } else {
+                        // 只有在视角外（或边缘外）且超过横向距离时才剔除
+                        markCulled(config, "mountain");
+                        return true;
+                    }
+                }
+            }
+
             double diffY = Math.abs((box.minY + 8.0) - cameraY);
-            if (diffY > (double) cachedReservedHeight) {
-                markCulled(config, "vertical");
-                return true;
+            int undergroundOffset = config.aggressiveVerticalCulling ? (cachedReservedHeight / 2) : cachedReservedHeight;
+            // 移除最小 16 格限制，完全遵循设置
+            if (diffY > (double) undergroundOffset) {
+                // 视角保护：即使超过垂直距离，如果在视角内也必须渲染
+                double dx_v = (box.minX + 8.0) - cameraX;
+                double dz_v = (box.minZ + 8.0) - cameraZ;
+                double dy_v = (box.minY + 8.0) - cameraY;
+                Vec3d look = cachedLookVector;
+                if (look == null) look = Vec3d.fromPolar(camera.getPitch(), camera.getYaw());
+                double dist = Math.sqrt(dx_v * dx_v + dy_v * dy_v + dz_v * dz_v);
+                if (dist > 0.1) {
+                    double dot = (look.x * dx_v + look.y * dy_v + look.z * dz_v) / dist;
+                    if (dot >= fovCosineThreshold) {
+                        // 在视角内，即使超过垂直距离也放宽限制（或者直接不剔除）
+                        // 这里我们选择不剔除，以完全遵循“视角可见必须渲染”
+                    } else {
+                        markCulled(config, "vertical");
+                        return true;
+                    }
+                }
             }
             // 玩家在地下时，剔除地表以上的区块（此时玩家无法通过地层看到天空）
-            if (cameraY < (double) (surfaceY - 16) && box.minY > (double) (surfaceY + 4)) {
+            // 激进模式下直接从 surfaceY 开始剔除，非激进模式保留少量偏移
+            int surfaceOffset = config.aggressiveVerticalCulling ? -8 : 0; 
+            if (cameraY < (double) (surfaceY - 16) && box.minY > (double) (surfaceY + surfaceOffset)) {
                 markCulled(config, "vertical");
                 return true;
             }

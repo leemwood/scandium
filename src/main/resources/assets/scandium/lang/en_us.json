@@ -5,6 +5,8 @@
   "scandium.option.enabled.tooltip": "Enables or disables the Scandium culling engine.",
   "scandium.option.sync_with_sodium": "Sync with Sodium",
   "scandium.option.sync_with_sodium.tooltip": "Synchronizes the culling cache with Sodium's rendering frame.",
+  "scandium.option.ignore_spectator_mode": "Ignore Spectator Mode",
+  "scandium.option.ignore_spectator_mode.tooltip": "Enabled by default. When enabled, culling logic still applies in spectator mode. When disabled, culling is disabled for spectators to prevent visual glitches when passing through blocks.",
   "scandium.option.fov_culling": "FOV Culling",
   "scandium.option.fov_culling.tooltip": "Culls chunks that are outside the player's field of view.",
   "scandium.option.fov_angle": "FOV Angle",
@@ -17,6 +19,12 @@
   "scandium.option.mountain_culling.tooltip": "More aggressively culls chunks behind mountains or under ceilings.",
   "scandium.option.transparency_awareness": "Transparency Awareness",
   "scandium.option.transparency_awareness.tooltip": "Prevents culling of transparent or semi-transparent chunks.",
+  "scandium.option.aggressive_vertical_culling": "Aggressive Vertical Culling",
+  "scandium.option.aggressive_vertical_culling.tooltip": "Disabled by default. When enabled, applies more aggressive vertical culling strategies to improve performance in caves, at the risk of minor flickering in complex terrain.",
+  "scandium.option.underground_horizontal_culling": "Underground Horizontal Culling",
+  "scandium.option.underground_horizontal_culling.tooltip": "When deep underground, restricts the horizontal render distance to significantly boost performance, as visibility is usually limited by terrain.",
+  "scandium.option.underground_horizontal_distance": "Underground Horizontal Distance",
+  "scandium.option.underground_horizontal_distance.tooltip": "The radius for underground horizontal culling (in chunks). Smaller values give more performance but might show air in very large caves.",
   "scandium.option.debug_mode": "Debug Mode",
   "scandium.option.debug_mode.tooltip": "Displays culling statistics in the action bar."
 }

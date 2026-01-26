@@ -21,12 +21,19 @@ public class ScandiumConfig {
     public boolean fovCullingEnabled = true;
     public boolean aggressiveMountainCulling = true;
     public boolean transparencyAwareness = true;
+    public boolean ignoreSpectatorMode = true;
+    public boolean aggressiveVerticalCulling = false;
+    public boolean undergroundHorizontalCulling = true;
+    public int undergroundHorizontalDistance = 4;
 
     private static ScandiumConfig instance;
+    private static long lastConfigTimestamp = -1;
 
     public static ScandiumConfig getInstance() {
         if (instance == null) {
             load();
+        } else {
+            reloadIfChanged();
         }
         return instance;
     }
@@ -42,6 +49,7 @@ public class ScandiumConfig {
             instance = new ScandiumConfig();
             instance.save();
         }
+        lastConfigTimestamp = CONFIG_FILE.exists() ? CONFIG_FILE.lastModified() : -1;
     }
 
     public void save() {
@@ -50,11 +58,20 @@ public class ScandiumConfig {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        lastConfigTimestamp = CONFIG_FILE.exists() ? CONFIG_FILE.lastModified() : -1;
     }
 
     public static void saveStatic() {
         if (instance != null) {
             instance.save();
+        }
+    }
+
+    public static void reloadIfChanged() {
+        if (!CONFIG_FILE.exists()) return;
+        long current = CONFIG_FILE.lastModified();
+        if (current != lastConfigTimestamp) {
+            load();
         }
     }
 }
