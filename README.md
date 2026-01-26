@@ -1,3 +1,5 @@
+[中文](README_zh.md)
+
 # Scandium
 
 > [!WARNING]

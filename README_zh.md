@@ -1,3 +1,5 @@
+[English](README.md)
+
 # 钪 (Scandium)
 
 > [!WARNING]
