@@ -1,5 +1,8 @@
 # Scandium
 
+> [!WARNING]
+> **This mod is entirely AI-driven.** Before using this mod, you should know that all of its code and logic were written by AI. If you are interested, feel free to fork it for your own development branch. Additionally, if you wish to submit a PR, please be aware that I will continue to update the project using AI, and your changes may be modified or even overwritten.
+
 Scandium is a high-performance rendering optimization mod for Minecraft Fabric 1.21.11, designed to work seamlessly with Sodium. It implements advanced culling techniques to improve frame rates, especially in complex environments.
 
 ## Features
