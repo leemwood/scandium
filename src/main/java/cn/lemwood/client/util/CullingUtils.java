@@ -176,7 +176,8 @@ public class CullingUtils {
             double distSq = dx_chunk*dx_chunk + dy_chunk*dy_chunk + dz_chunk*dz_chunk;
             
             // 矿洞环境下 FOV 剔除更激进：减小最小生效距离
-            double minFovDistSq = cachedPlayerUnderground ? 64 : 400; // 地底 8 格外即生效，地表 20 格
+            // 从 64 (8格) 提升至 256 (16格)，以防止在当前区块内或边缘处发生误剔除
+            double minFovDistSq = cachedPlayerUnderground ? 256 : 400; 
             
             if (distSq > minFovDistSq) { 
                 double invDist = 1.0 / Math.sqrt(distSq);
@@ -186,7 +187,8 @@ public class CullingUtils {
                 double currentThreshold = fovCosineThreshold;
                 if (cachedPlayerUnderground && config.aggressiveVerticalCulling) {
                     // 在地底且开启激进模式时，进一步收紧 FOV 判定
-                    double tightenedFov = config.fovAngle + 8.0; // 仅保留 8 度固定冗余
+                    // 此时忽略旋转补偿，仅保留 4 度的极小固定冗余
+                    double tightenedFov = config.fovAngle + 4.0; 
                     currentThreshold = Math.cos(Math.toRadians(tightenedFov / 2.0));
                 }
                 
