@@ -19,12 +19,7 @@ import net.minecraft.world.chunk.ChunkStatus;
 
 public class CullingUtils {
     static {
-        try {
-            System.loadLibrary("scandium_native");
-        } catch (UnsatisfiedLinkError e) {
-            // Fallback or log error
-            System.err.println("Failed to load native library: " + e.getMessage());
-        }
+        NativeLoader.load();
     }
 
     private static native void nativeResetCache();
