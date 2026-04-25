@@ -2,6 +2,11 @@
 build/
 .trae/
 
+# Rust artifacts
+src/main/rust/target/
+src/main/resources/natives/
+src/main/resources/lib/
+
 *.log
 
 sodium_compatibility.md
