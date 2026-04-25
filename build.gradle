@@ -94,6 +94,63 @@ jar {
 	}
 }
 
+// Rust build configuration
+def rustSrcDir = "src/main/rust"
+def rustTargetDir = "${rustSrcDir}/target"
+def androidTargets = [
+    'aarch64-linux-android': 'arm64-v8a',
+    'armv7-linux-androideabi': 'armeabi-v7a',
+    'i686-linux-android': 'x86',
+    'x86_64-linux-android': 'x86_64'
+]
+
+task buildRustDesktop(type: Exec) {
+    workingDir rustSrcDir
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        commandLine 'cmd', '/c', 'cargo build --release'
+    } else {
+        commandLine 'cargo', 'build', '--release'
+    }
+}
+
+task copyRustNatives(type: Copy) {
+    dependsOn buildRustDesktop
+    
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        from "${rustTargetDir}/release/scandium_native.dll"
+    } else {
+        from "${rustTargetDir}/release/libscandium_native.so"
+    }
+    into "src/main/resources/natives"
+}
+
+// Android Build Tasks
+androidTargets.each { target, arch ->
+    def taskName = "buildRustAndroid_${arch}"
+    task "${taskName}"(type: Exec) {
+        workingDir rustSrcDir
+        if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+            commandLine 'cmd', '/c', "cargo ndk -t ${target} build --release"
+        } else {
+            commandLine 'cargo', 'ndk', '-t', target, 'build', '--release'
+        }
+    }
+
+    task "copyRustAndroid_${arch}"(type: Copy) {
+        dependsOn "${taskName}"
+        from "${rustTargetDir}/${target}/release/libscandium_native.so"
+        into "src/main/resources/lib/${arch}"
+    }
+}
+
+task buildRustAndroidAll {
+    dependsOn androidTargets.collect { target, arch -> "copyRustAndroid_${arch}" }
+}
+
+processResources.dependsOn copyRustNatives
+// If you want to include Android natives in every build, uncomment the next line:
+// processResources.dependsOn buildRustAndroidAll
+
 // configure the maven publication
 publishing {
 	publications {

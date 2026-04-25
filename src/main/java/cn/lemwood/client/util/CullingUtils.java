@@ -3,8 +3,6 @@ package cn.lemwood.client.util;
 import cn.lemwood.client.ScandiumClient;
 import cn.lemwood.config.ScandiumConfig;
 import cn.lemwood.mixin.CameraAccessor;
-import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
@@ -20,9 +18,23 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkStatus;
 
 public class CullingUtils {
+    static {
+        try {
+            System.loadLibrary("scandium_native");
+        } catch (UnsatisfiedLinkError e) {
+            // Fallback or log error
+            System.err.println("Failed to load native library: " + e.getMessage());
+        }
+    }
+
+    private static native void nativeResetCache();
+    private static native int nativeGetCachedHeight(long key);
+    private static native void nativePutCachedHeight(long key, int value);
+    private static native int nativeGetCachedTransparency(long key);
+    private static native void nativePutCachedTransparency(long key, boolean value);
+    private static native void nativeCleanupCaches(int playerChunkX, int playerChunkZ);
+
     private static ClientWorld cachedWorld;
-    private static final Long2IntOpenHashMap cachedHeights = new Long2IntOpenHashMap();
-    private static final Long2BooleanOpenHashMap cachedTransparency = new Long2BooleanOpenHashMap();
     private static long lastCacheTime = -1;
     private static int cachedPlayerSurfaceY;
     private static int cachedPlayerCeilingY;
@@ -44,13 +56,11 @@ public class CullingUtils {
     private static final int MAX_HEIGHT_CACHE_SIZE = 1024;
 
     static {
-        cachedHeights.defaultReturnValue(-1);
         cachedLookVector = new Vec3d(0, 0, 1);
     }
 
     public static void resetCache() {
-        cachedHeights.clear();
-        cachedTransparency.clear();
+        nativeResetCache();
         cachedWorld = null;
         lastCacheTime = -1;
         cacheValid = false;
@@ -85,8 +95,7 @@ public class CullingUtils {
             cachedWorld = client.world;
             isNether = client.world.getDimensionEntry().value().attributes().containsKey(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY);
             hasCeiling = client.world.getDimensionEntry().value().hasCeiling();
-            cachedHeights.clear();
-            cachedTransparency.clear();
+            nativeResetCache();
             lastCacheTime = -1;
             cacheValid = false;
         }
@@ -173,7 +182,9 @@ public class CullingUtils {
 
             cacheCleanCounter++;
             if (cacheCleanCounter >= 60) {
-                cleanupCaches();
+                int playerChunkX = ((int)client.player.getX()) >> 4;
+                int playerChunkZ = ((int)client.player.getZ()) >> 4;
+                nativeCleanupCaches(playerChunkX, playerChunkZ);
                 cacheCleanCounter = 0;
             }
         }
@@ -229,10 +240,10 @@ public class CullingUtils {
         }
 
         long key = ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
-        int surfaceY = cachedHeights.get(key);
+        int surfaceY = nativeGetCachedHeight(key);
         if (surfaceY == -1) {
             surfaceY = getReliableSurfaceY(client.world, (chunkX << 4) + 8, (chunkZ << 4) + 8);
-            cachedHeights.put(key, surfaceY);
+            nativePutCachedHeight(key, surfaceY);
         }
 
         if (config.aggressiveMountainCulling) {
@@ -328,28 +339,6 @@ public class CullingUtils {
         return false;
     }
 
-    private static void cleanupCaches() {
-        if (cachedTransparency.size() > MAX_TRANSPARENCY_CACHE_SIZE) {
-            cachedTransparency.clear();
-        }
-
-        if (cachedHeights.size() > MAX_HEIGHT_CACHE_SIZE) {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client.player != null) {
-                int playerChunkX = ((int)client.player.getX()) >> 4;
-                int playerChunkZ = ((int)client.player.getZ()) >> 4;
-
-                cachedHeights.long2IntEntrySet().removeIf(entry -> {
-                    long key = entry.getLongKey();
-                    int chunkX = (int)(key >> 32);
-                    int chunkZ = (int)(key & 0xFFFFFFFFL);
-                    int dist = Math.abs(chunkX - playerChunkX) + Math.abs(chunkZ - playerChunkZ);
-                    return dist > 32;
-                });
-            }
-        }
-    }
-
     private static void markCulled(ScandiumConfig config, String type) {
         if (config.debugMode) {
             ScandiumClient.CULLED_COUNT++;
@@ -366,7 +355,8 @@ public class CullingUtils {
 
     private static boolean isChunkTransparentFast(ClientWorld world, int cx, int cy, int cz) {
         long key = ((long) cx & 0xFFFFFFL) | (((long) cy & 0xFFFFFFL) << 24) | (((long) cz & 0xFFFFFFL) << 48);
-        if (cachedTransparency.containsKey(key)) return cachedTransparency.get(key);
+        int cached = nativeGetCachedTransparency(key);
+        if (cached != -1) return cached == 1;
 
         Chunk chunk = world.getChunk(cx, cz, ChunkStatus.FULL, false);
         if (chunk == null) return false;
@@ -392,8 +382,7 @@ public class CullingUtils {
                 }
             }
         }
-
-        cachedTransparency.put(key, transparent);
+        nativePutCachedTransparency(key, transparent);
         return transparent;
     }
 
