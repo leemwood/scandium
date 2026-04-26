@@ -99,6 +99,9 @@ def rustSrcDir = "src/main/rust"
 def rustTargetDir = "${rustSrcDir}/target"
 
 def getCargoCommand() {
+    if (System.getenv("CARGO")) {
+        return System.getenv("CARGO")
+    }
     def cargoName = System.getProperty('os.name').toLowerCase().contains('windows') ? 'cargo.exe' : 'cargo'
     
     // 1. Try PATH
@@ -168,42 +171,34 @@ task copyRustNatives(type: Copy) {
 androidTargets.each { target, arch ->
     def taskName = "buildRustAndroid_${arch}"
     task "${taskName}"(type: Exec) {
-         workingDir rustSrcDir
-         
-         // Ensure .cargo/bin is in PATH for the process
-         def cargoBin = new File(System.getProperty("user.home"), ".cargo/bin").absolutePath
-         environment "PATH", "${cargoBin}${File.pathSeparator}${System.getenv("PATH")}"
-         
-         // Add inputs and outputs for up-to-date checking
-         inputs.dir "${rustSrcDir}/src"
-         inputs.file "${rustSrcDir}/Cargo.toml"
-         outputs.file "${rustTargetDir}/${target}/release/libscandium_native.so"
- 
-         commandLine 'cmd', '/c', 'echo Building Rust...'
+        workingDir rustSrcDir
+        
+        // Ensure .cargo/bin is in PATH for the process
+        def cargoBin = new File(System.getProperty("user.home"), ".cargo/bin").absolutePath
+        environment "PATH", "${cargoBin}${File.pathSeparator}${System.getenv("PATH")}"
+        
+        // Add inputs and outputs for up-to-date checking
+        inputs.dir "${rustSrcDir}/src"
+        inputs.file "${rustSrcDir}/Cargo.toml"
+        outputs.file "${rustTargetDir}/${target}/release/libscandium_native.so"
 
-         onlyIf {
-             Properties properties = new Properties()
-             if (project.rootProject.file('local.properties').exists()) {
-                 properties.load(project.rootProject.file('local.properties').newDataInputStream())
-             }
-             def ndkPath = properties.getProperty('ndk.dir') ?: System.getenv("ANDROID_NDK_HOME") ?: System.getenv("ANDROID_HOME")
-             
-             // Check if output already exists to avoid Windows error
-             def outputFile = file("${rustTargetDir}/${target}/release/libscandium_native.so")
-             if (outputFile.exists()) {
-                 return false // Skip task entirely if output exists
-             }
-             
-             if (!ndkPath) {
-                 logger.warn("Android NDK not found. Please set ndk.dir in local.properties or ANDROID_NDK_HOME environment variable.")
-             }
-             return ndkPath != null
-         }
+        onlyIf {
+            Properties properties = new Properties()
+            if (project.rootProject.file('local.properties').exists()) {
+                properties.load(project.rootProject.file('local.properties').newDataInputStream())
+            }
+            def ndkPath = properties.getProperty('ndk.dir') ?: System.getenv("ANDROID_NDK_HOME") ?: System.getenv("ANDROID_NDK_ROOT") ?: System.getenv("ANDROID_HOME")
+            
+            if (!ndkPath) {
+                logger.warn("Android NDK not found. Please set ndk.dir in local.properties or ANDROID_NDK_HOME environment variable.")
+            }
+            return ndkPath != null
+        }
   
          doFirst {
              def cargo = getCargoCommand()
-             def cargoExec = cargo.endsWith('.exe') ? cargo : "${cargo}.exe"
              if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+                 def cargoExec = cargo.endsWith('.exe') ? cargo : "${cargo}.exe"
                  commandLine 'cmd', '/c', "\"${cargoExec}\" ndk -t ${target} build --release"
              } else {
                  commandLine cargo, 'ndk', '-t', target, 'build', '--release'
