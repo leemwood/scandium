@@ -25,7 +25,18 @@ jobs:
       - name: Install cargo-ndk
         run: |
           if ! command -v cargo-ndk &> /dev/null; then
-            curl -LsSf https://github.com/bbqsrc/cargo-ndk/releases/download/v3.6.3/cargo-ndk-v3.6.3-x86_64-unknown-linux-musl.tar.gz | tar xzf - -C ~/.cargo/bin
+            echo "Downloading cargo-ndk..."
+            # 使用更稳健的下载方式，如果下载失败则回退到 cargo install
+            curl -LsSf https://github.com/bbqsrc/cargo-ndk/releases/download/v3.6.3/cargo-ndk-v3.6.3-x86_64-unknown-linux-gnu.tar.gz -o cargo-ndk.tar.gz || \
+            curl -LsSf https://github.com/bbqsrc/cargo-ndk/releases/download/v3.6.3/cargo-ndk-v3.6.3-x86_64-unknown-linux-musl.tar.gz -o cargo-ndk.tar.gz
+            
+            if [ -f cargo-ndk.tar.gz ]; then
+              tar xzf cargo-ndk.tar.gz -C ~/.cargo/bin
+              rm cargo-ndk.tar.gz
+            else
+              echo "Binary download failed, falling back to cargo install..."
+              cargo install cargo-ndk --version 3.6.3
+            fi
           fi
 
       - name: Set up Android NDK
