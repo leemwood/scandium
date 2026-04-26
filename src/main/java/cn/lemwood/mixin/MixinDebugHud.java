@@ -7,13 +7,14 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
 @Mixin(DebugHud.class)
 public class MixinDebugHud {
 
-    @Inject(method = "getLeftText()Ljava/util/List;", at = @At("RETURN"))
+    @Inject(method = "method_1835", at = @At("RETURN"), remap = false)
     private void onGetLeftText(CallbackInfoReturnable<List<String>> cir) {
         if (ScandiumConfig.getInstance().debugMode) {
             List<String> list = cir.getReturnValue();
