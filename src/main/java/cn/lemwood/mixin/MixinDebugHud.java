@@ -13,7 +13,7 @@ import java.util.List;
 @Mixin(DebugHud.class)
 public class MixinDebugHud {
 
-    @Inject(method = "getLeftText", at = @At("RETURN"))
+    @Inject(method = "getLeftText()Ljava/util/List;", at = @At("RETURN"))
     private void onGetLeftText(CallbackInfoReturnable<List<String>> cir) {
         if (ScandiumConfig.getInstance().debugMode) {
             List<String> list = cir.getReturnValue();
