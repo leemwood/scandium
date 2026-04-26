@@ -23,12 +23,16 @@ jobs:
           targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
 
       - name: Install cargo-ndk
-        run: cargo install cargo-ndk
+        run: |
+          if ! command -v cargo-ndk &> /dev/null; then
+            curl -LsSf https://github.com/bbqsrc/cargo-ndk/releases/download/v3.6.3/cargo-ndk-v3.6.3-x86_64-unknown-linux-musl.tar.gz | tar xzf - -C ~/.cargo/bin
+          fi
 
       - name: Set up Android NDK
+        id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r27b # 对应 27.x 版本
+          ndk-version: r27b
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -42,6 +46,7 @@ jobs:
         run: ./gradlew build -PincludeAndroid
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
