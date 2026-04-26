@@ -21,10 +21,12 @@
   "scandium.option.transparency_awareness.tooltip": "实时监测区块中的透明方块，防止水、玻璃等半透明区块被错误剔除。",
   "scandium.option.aggressive_vertical_culling": "激进垂直剔除",
   "scandium.option.aggressive_vertical_culling.tooltip": "默认关闭。开启后将采用更激进的垂直剔除策略，在保证地底渲染性能的同时可能会在特定复杂地形下产生极少量的区块闪烁。",
-  "scandium.option.underground_horizontal_culling": "地底横向剔除",
-  "scandium.option.underground_horizontal_culling.tooltip": "玩家在地底深处时，限制横向渲染距离以大幅提升性能。因为在地底视角通常受限，远处的横向区块大多不可见。",
-  "scandium.option.underground_horizontal_distance": "地底横向距离",
-  "scandium.option.underground_horizontal_distance.tooltip": "地底横向剔除的生效半径（单位：区块）。数值越小性能越强，但可能在大型溶洞边缘看到空气。",
   "scandium.option.debug_mode": "调试模式",
-  "scandium.option.debug_mode.tooltip": "在快捷栏上方显示实时剔除统计数据。"
+  "scandium.option.debug_mode.tooltip": "在 F3 菜单中显示详细的剔除统计信息。",
+  "scandium.option.config_check_interval": "配置检查间隔",
+  "scandium.option.config_check_interval.tooltip": "检查配置文件修改的间隔次数。数值越高，对性能影响越小，但配置生效越慢。",
+  "scandium.option.underground_horizontal_culling": "地底水平剔除",
+  "scandium.option.underground_horizontal_culling.tooltip": "在玩家深处地底时剔除远处的水平区块。",
+  "scandium.option.underground_horizontal_distance": "地底剔除距离",
+  "scandium.option.underground_horizontal_distance.tooltip": "地底水平剔除的区块距离阈值。"
 }

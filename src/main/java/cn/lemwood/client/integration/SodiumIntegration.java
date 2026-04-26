@@ -136,6 +136,15 @@ public class SodiumIntegration implements ConfigEntryPoint {
                 .setBinding(v -> { config.debugMode = v; cn.lemwood.client.util.CullingUtils.resetCache(); }, () -> config.debugMode)
                 .setDefaultValue(false));
 
+        advanced.addOption(builder.createIntegerOption(Identifier.of("scandium", "config_check_interval"))
+                .setName(Text.translatable("scandium.option.config_check_interval"))
+                .setTooltip(Text.translatable("scandium.option.config_check_interval.tooltip"))
+                .setRange(50, 1000, 50)
+                .setStorageHandler(config::save)
+                .setValueFormatter(v -> Text.literal(String.valueOf(v)))
+                .setBinding(v -> { config.configCheckInterval = v; }, () -> config.configCheckInterval)
+                .setDefaultValue(200));
+
         page.addOptionGroup(advanced);
 
         builder.registerOwnModOptions()

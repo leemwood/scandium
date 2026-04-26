@@ -25,6 +25,7 @@ public class ScandiumConfig {
     public boolean aggressiveVerticalCulling = false;
     public boolean undergroundHorizontalCulling = true;
     public int undergroundHorizontalDistance = 4;
+    public int configCheckInterval = 200;
 
     private static ScandiumConfig instance;
     private static long lastConfigTimestamp = -1;
@@ -34,8 +35,8 @@ public class ScandiumConfig {
         if (instance == null) {
             load();
         } else {
-            // 每隔 200 次调用检查一次文件修改，避免在渲染循环中频繁触发 I/O
-            if (++checkCounter >= 200) {
+            // 根据配置的间隔检查文件修改，避免在渲染循环中频繁触发 I/O
+            if (++checkCounter >= instance.configCheckInterval) {
                 checkCounter = 0;
                 reloadIfChanged();
             }

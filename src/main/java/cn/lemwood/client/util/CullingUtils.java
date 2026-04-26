@@ -33,7 +33,7 @@ public class CullingUtils {
         double lookX, double lookY, double lookZ,
         double fovCos, boolean isUnderground, boolean isNether, boolean hasCeiling,
         int reservedHeight, boolean fovEnabled, boolean mountainEnabled, boolean verticalEnabled,
-        boolean aggressiveVertical
+        boolean aggressiveVertical, boolean undergroundHorizontal, int undergroundHorizontalDist
     );
     private static native int nativeShouldCull(
         double minX, double minY, double minZ,
@@ -185,7 +185,8 @@ public class CullingUtils {
                 cachedLookVector.x, cachedLookVector.y, cachedLookVector.z,
                 fovCosineThreshold, cachedPlayerUnderground, isNether, hasCeiling,
                 cachedReservedHeight, config.fovCullingEnabled, config.aggressiveMountainCulling, 
-                config.enabled, config.aggressiveVerticalCulling
+                config.enabled, config.aggressiveVerticalCulling,
+                config.undergroundHorizontalCulling, config.undergroundHorizontalDistance
             );
 
             if (config.debugMode) {
@@ -229,6 +230,7 @@ public class CullingUtils {
                 if (cullResult == 1) ScandiumClient.CULLED_FOV++;
                 else if (cullResult == 2) ScandiumClient.CULLED_MOUNTAIN++;
                 else if (cullResult == 3) ScandiumClient.CULLED_VERTICAL++;
+                else if (cullResult == 4) ScandiumClient.CULLED_HORIZONTAL++;
             }
             return true;
         }

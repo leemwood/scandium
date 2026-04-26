@@ -24,6 +24,7 @@ public class MixinDebugHud {
                      "\u00A7dFOV: \u00A7f" + ScandiumClient.CULLED_FOV + 
                      " | \u00A7dVert: \u00A7f" + ScandiumClient.CULLED_VERTICAL + 
                      " | \u00A7dMtn: \u00A7f" + ScandiumClient.CULLED_MOUNTAIN +
+                     " | \u00A7dHoriz: \u00A7f" + ScandiumClient.CULLED_HORIZONTAL +
                      " | \u00A7dTotal: \u00A7f" + ScandiumClient.TOTAL_CHECKED);
             
             list.add("\u00A7d[Scandium] \u00A7fEnvironment: " + 
@@ -42,6 +43,7 @@ public class MixinDebugHud {
             ScandiumClient.CULLED_FOV = 0;
             ScandiumClient.CULLED_VERTICAL = 0;
             ScandiumClient.CULLED_MOUNTAIN = 0;
+            ScandiumClient.CULLED_HORIZONTAL = 0;
             ScandiumClient.CULLED_COUNT = 0;
             ScandiumClient.CULLED_BACK = 0;
         }

@@ -21,6 +21,7 @@ public class ScandiumClient implements ClientModInitializer {
     public static int CULLED_BACK = 0;
     public static int CULLED_FOV = 0;
     public static int CULLED_MOUNTAIN = 0;
+    public static int CULLED_HORIZONTAL = 0;
     public static int TOTAL_CHECKED = 0;
 
     public static boolean debugCachedUnderground = false;
@@ -83,6 +84,7 @@ public class ScandiumClient implements ClientModInitializer {
                 CULLED_FOV = 0;
                 CULLED_VERTICAL = 0;
                 CULLED_MOUNTAIN = 0;
+                CULLED_HORIZONTAL = 0;
                 CULLED_BACK = 0;
                 CULLED_COUNT = 0;
             }

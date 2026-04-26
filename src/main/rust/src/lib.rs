@@ -17,6 +17,8 @@ struct FrameState {
     mountain_enabled: bool,
     vertical_enabled: bool,
     aggressive_vertical: bool,
+    underground_horizontal: bool,
+    underground_horizontal_dist: i32,
 }
 
 impl Default for FrameState {
@@ -33,6 +35,8 @@ impl Default for FrameState {
             mountain_enabled: true,
             vertical_enabled: true,
             aggressive_vertical: false,
+            underground_horizontal: true,
+            underground_horizontal_dist: 4,
         }
     }
 }
@@ -163,6 +167,8 @@ pub extern "system" fn Java_cn_lemwood_client_util_CullingUtils_nativeUpdateFram
     mountainEnabled: jboolean,
     verticalEnabled: jboolean,
     aggressiveVertical: jboolean,
+    undergroundHorizontal: jboolean,
+    undergroundHorizontalDist: jint,
 ) {
     let mut cache = CACHE.write();
     cache.state.cam_x = camX;
@@ -180,6 +186,8 @@ pub extern "system" fn Java_cn_lemwood_client_util_CullingUtils_nativeUpdateFram
     cache.state.mountain_enabled = mountainEnabled != 0;
     cache.state.vertical_enabled = verticalEnabled != 0;
     cache.state.aggressive_vertical = aggressiveVertical != 0;
+    cache.state.underground_horizontal = undergroundHorizontal != 0;
+    cache.state.underground_horizontal_dist = undergroundHorizontalDist;
 }
 
 #[no_mangle]
@@ -188,7 +196,7 @@ pub extern "system" fn Java_cn_lemwood_client_util_CullingUtils_nativeShouldCull
     _env: JNIEnv,
     _class: JClass,
     minX: jdouble, minY: jdouble, minZ: jdouble,
-    maxX: jdouble, maxY: jdouble, maxZ: jdouble,
+    _maxX: jdouble, maxY: jdouble, _maxZ: jdouble,
     chunkX: jint, chunkZ: jint,
 ) -> jint {
     let cache = CACHE.read();
@@ -216,7 +224,32 @@ pub extern "system" fn Java_cn_lemwood_client_util_CullingUtils_nativeShouldCull
         }
     }
 
-    // 2. Heightmap-based Culling
+    // 2. Underground Horizontal Culling
+    if s.underground_horizontal && s.is_underground && !s.is_nether {
+        let cam_chunk_x = (s.cam_x as i32) >> 4;
+        let cam_chunk_z = (s.cam_z as i32) >> 4;
+        let dx = (chunkX - cam_chunk_x).abs();
+        let dz = (chunkZ - cam_chunk_z).abs();
+        
+        if dx > s.underground_horizontal_dist || dz > s.underground_horizontal_dist {
+            // 如果是在地底深处且距离较远，且视线不在该方向，则剔除
+            let center_x = minX + 8.0;
+            let center_z = minZ + 8.0;
+            let target_dx = center_x - s.cam_x;
+            let target_dz = center_z - s.cam_z;
+            let dist_h_sq = target_dx * target_dx + target_dz * target_dz;
+            
+            if dist_h_sq > 1024.0 { // 32 blocks
+                let inv_dist_h = 1.0 / dist_h_sq.sqrt();
+                let dot_h = (s.look_x * target_dx + s.look_z * target_dz) * inv_dist_h;
+                if dot_h < 0.5 { // 60 degrees horizontally
+                    return 4; // Horizontal
+                }
+            }
+        }
+    }
+
+    // 3. Heightmap-based Culling
     let key = ((chunkX as u64) << 32) | ((chunkZ as u32) as u64);
     let surface_y = *cache.heights.get(&key).unwrap_or(&-1);
 

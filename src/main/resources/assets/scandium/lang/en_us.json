@@ -26,5 +26,11 @@
   "scandium.option.underground_horizontal_distance": "Underground Horizontal Distance",
   "scandium.option.underground_horizontal_distance.tooltip": "The radius for underground horizontal culling (in chunks). Smaller values give more performance but might show air in very large caves.",
   "scandium.option.debug_mode": "Debug Mode",
-  "scandium.option.debug_mode.tooltip": "Displays culling statistics in the action bar."
+  "scandium.option.debug_mode.tooltip": "Displays detailed culling statistics in the F3 menu.",
+  "scandium.option.config_check_interval": "Config Check Interval",
+  "scandium.option.config_check_interval.tooltip": "The number of calls between checking for config file changes. Higher values reduce overhead but delay setting updates.",
+  "scandium.option.underground_horizontal_culling": "Underground Horizontal Culling",
+  "scandium.option.underground_horizontal_culling.tooltip": "Culls distant horizontal chunks when deep underground.",
+  "scandium.option.underground_horizontal_distance": "Underground Horizontal Distance",
+  "scandium.option.underground_horizontal_distance.tooltip": "The distance threshold for underground horizontal culling in chunks."
 }
