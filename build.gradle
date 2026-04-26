@@ -151,9 +151,15 @@ task buildRustDesktop(type: Exec) {
         return !output.exists()
     }
 
-    // On Windows, sometimes .exe extension is needed for Exec task
-    def cargoExec = cargo.endsWith('.exe') ? cargo : "${cargo}.exe"
-    commandLine 'cmd', '/c', "echo Building Desktop && \"${cargoExec}\" build --release"
+    doFirst {
+        def cargo = getCargoCommand()
+        if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+            def cargoExec = cargo.endsWith('.exe') ? cargo : "${cargo}.exe"
+            commandLine 'cmd', '/c', "echo Building Desktop && \"${cargoExec}\" build --release"
+        } else {
+            commandLine cargo, 'build', '--release'
+        }
+    }
 }
 
 task copyRustNatives(type: Copy) {
