@@ -129,7 +129,6 @@ def androidTargets = [
 
 task buildRustDesktop(type: Exec) {
     workingDir rustSrcDir
-    def cargo = getCargoCommand()
     
     // Ensure .cargo/bin is in PATH for the process
     def cargoBin = new File(System.getProperty("user.home"), ".cargo/bin").absolutePath
@@ -138,14 +137,17 @@ task buildRustDesktop(type: Exec) {
     // Add inputs and outputs for up-to-date checking
     inputs.dir "${rustSrcDir}/src"
     inputs.file "${rustSrcDir}/Cargo.toml"
-    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+    
+    def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+    if (isWindows) {
         outputs.file "${rustTargetDir}/release/scandium_native.dll"
     } else {
         outputs.file "${rustTargetDir}/release/libscandium_native.so"
     }
 
     onlyIf {
-        def output = System.getProperty('os.name').toLowerCase().contains('windows') ? 
+        def isWin = System.getProperty('os.name').toLowerCase().contains('windows')
+        def output = isWin ? 
             file("${rustTargetDir}/release/scandium_native.dll") : 
             file("${rustTargetDir}/release/libscandium_native.so")
         return !output.exists()
@@ -153,7 +155,8 @@ task buildRustDesktop(type: Exec) {
 
     doFirst {
         def cargo = getCargoCommand()
-        if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        def isWin = System.getProperty('os.name').toLowerCase().contains('windows')
+        if (isWin) {
             def cargoExec = cargo.endsWith('.exe') ? cargo : "${cargo}.exe"
             commandLine 'cmd', '/c', "echo Building Desktop && \"${cargoExec}\" build --release"
         } else {
