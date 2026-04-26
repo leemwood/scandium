@@ -3,19 +3,19 @@ package cn.lemwood.client.util;
 import cn.lemwood.client.ScandiumClient;
 import cn.lemwood.config.ScandiumConfig;
 import cn.lemwood.mixin.CameraAccessor;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.world.attribute.EnvironmentAttributes;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkStatus;
+import net.minecraft.world.attribute.EnvironmentAttributes;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.util.math.BlockPos;
 
 public class CullingUtils {
     static {
@@ -40,8 +40,21 @@ public class CullingUtils {
         double maxX, double maxY, double maxZ,
         int chunkX, int chunkZ
     );
+    private static native int[] nativeShouldCullBatch(
+        int[] minXS, int[] minYS, int[] minZS,
+        int[] maxYS, int[] chunkXS, int[] chunkZS,
+        int count
+    );
 
     private static final ThreadLocal<BlockPos.Mutable> MUTABLE_POS = ThreadLocal.withInitial(BlockPos.Mutable::new);
+    private static final int BATCH_THRESHOLD = 8;
+
+    private static final ThreadLocal<int[]> BATCH_MIN_X = ThreadLocal.withInitial(() -> new int[64]);
+    private static final ThreadLocal<int[]> BATCH_MIN_Y = ThreadLocal.withInitial(() -> new int[64]);
+    private static final ThreadLocal<int[]> BATCH_MIN_Z = ThreadLocal.withInitial(() -> new int[64]);
+    private static final ThreadLocal<int[]> BATCH_MAX_Y = ThreadLocal.withInitial(() -> new int[64]);
+    private static final ThreadLocal<int[]> BATCH_CHUNK_X = ThreadLocal.withInitial(() -> new int[64]);
+    private static final ThreadLocal<int[]> BATCH_CHUNK_Z = ThreadLocal.withInitial(() -> new int[64]);
 
     private static ClientWorld cachedWorld;
     private static long lastCacheTime = -1;
@@ -59,6 +72,7 @@ public class CullingUtils {
     private static boolean prevCachedPlayerUnderground = false;
     private static int undergroundTransitionCounter = 0;
     private static int cacheCleanCounter = 0;
+    private static int pendingBatchCount = 0;
 
     static {
         cachedLookVector = new Vec3d(0, 0, 1);
@@ -70,6 +84,7 @@ public class CullingUtils {
         lastCacheTime = -1;
         cacheValid = false;
         undergroundTransitionCounter = 0;
+        pendingBatchCount = 0;
     }
 
     public static boolean shouldCull(Box box, int chunkX, int chunkY, int chunkZ) {
@@ -103,6 +118,7 @@ public class CullingUtils {
             nativeResetCache();
             lastCacheTime = -1;
             cacheValid = false;
+            flushBatch();
         }
 
         float currentYaw = camera.getYaw();
@@ -125,6 +141,8 @@ public class CullingUtils {
         boolean forceUpdate = movementDistSq > 64.0 || (currentTime - lastCacheTime > 100);
 
         if (forceUpdate || significantMovement || significantRotation || shouldUpdate) {
+            flushBatch();
+
             cachedCameraX = cameraX;
             cachedCameraY = cameraY;
             cachedCameraZ = cameraZ;
@@ -179,7 +197,6 @@ public class CullingUtils {
             double halfFovRad = Math.toRadians(totalFov / 2.0);
             fovCosineThreshold = Math.cos(halfFovRad);
 
-            // 同步状态到 Rust
             nativeUpdateFrameState(
                 cameraX, cameraY, cameraZ,
                 cachedLookVector.x, cachedLookVector.y, cachedLookVector.z,
@@ -217,7 +234,6 @@ public class CullingUtils {
             }
         }
 
-        // 调用 Rust 端的核心剔除逻辑
         int cullResult = nativeShouldCull(
             box.minX, box.minY, box.minZ,
             box.maxX, box.maxY, box.maxZ,
@@ -235,7 +251,6 @@ public class CullingUtils {
             return true;
         }
 
-        // 确保高度图缓存存在（Rust 端依赖此缓存进行剔除判断）
         long key = ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
         if (nativeGetCachedHeight(key) == -1) {
             int surfaceY = getReliableSurfaceY(client.world, (chunkX << 4) + 8, (chunkZ << 4) + 8);
@@ -243,6 +258,39 @@ public class CullingUtils {
         }
 
         return false;
+    }
+
+    public static void ensureBatchHeight(int chunkX, int chunkZ, ClientWorld world) {
+        long key = ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
+        if (nativeGetCachedHeight(key) == -1) {
+            int surfaceY = getReliableSurfaceY(world, (chunkX << 4) + 8, (chunkZ << 4) + 8);
+            nativePutCachedHeight(key, surfaceY);
+        }
+    }
+
+    public static int processBatch(int[] minXS, int[] minYS, int[] minZS, int[] maxYS, int[] chunkXS, int[] chunkZS, int count) {
+        if (count == 0) return 0;
+        int[] results = nativeShouldCullBatch(minXS, minYS, minZS, maxYS, chunkXS, chunkZS, count);
+        int culledCount = 0;
+        for (int i = 0; i < count; i++) {
+            if (results[i] != 0) {
+                culledCount++;
+                if (ScandiumClient.isDebugHudOpen) {
+                    ScandiumClient.TOTAL_CHECKED++;
+                    ScandiumClient.CULLED_COUNT++;
+                    int result = results[i];
+                    if (result == 1) ScandiumClient.CULLED_FOV++;
+                    else if (result == 2) ScandiumClient.CULLED_MOUNTAIN++;
+                    else if (result == 3) ScandiumClient.CULLED_VERTICAL++;
+                    else if (result == 4) ScandiumClient.CULLED_HORIZONTAL++;
+                }
+            }
+        }
+        return culledCount;
+    }
+
+    public static boolean isBatchResultCulled(int[] results, int index) {
+        return results != null && index < results.length && results[index] != 0;
     }
 
     private static boolean isChunkTransparentFast(ClientWorld world, int cx, int cy, int cz) {
@@ -278,14 +326,15 @@ public class CullingUtils {
         return transparent;
     }
 
-    // 移除不再需要的 markCulled 方法，逻辑已迁移至 Rust 并通过 cullResult 返回
-
-
     public static int getReliableSurfaceY(ClientWorld world, int x, int z) {
         if (world.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) == null) {
              return world.getBottomY();
         }
 
         return world.getTopY(Heightmap.Type.MOTION_BLOCKING, x, z);
+    }
+
+    private static void flushBatch() {
+        pendingBatchCount = 0;
     }
 }
