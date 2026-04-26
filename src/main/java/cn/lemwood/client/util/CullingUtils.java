@@ -189,7 +189,7 @@ public class CullingUtils {
                 config.undergroundHorizontalCulling, config.undergroundHorizontalDistance
             );
 
-            if (config.debugMode) {
+            if (ScandiumClient.isDebugHudOpen) {
                 ScandiumClient.debugCachedSurfaceY = cachedPlayerSurfaceY;
                 ScandiumClient.debugCachedUnderground = cachedPlayerUnderground;
             }
@@ -207,7 +207,7 @@ public class CullingUtils {
             return false;
         }
 
-        if (config.debugMode) {
+        if (ScandiumClient.isDebugHudOpen) {
             ScandiumClient.TOTAL_CHECKED++;
         }
 
@@ -225,7 +225,7 @@ public class CullingUtils {
         );
 
         if (cullResult != 0) {
-            if (config.debugMode) {
+            if (ScandiumClient.isDebugHudOpen) {
                 ScandiumClient.CULLED_COUNT++;
                 if (cullResult == 1) ScandiumClient.CULLED_FOV++;
                 else if (cullResult == 2) ScandiumClient.CULLED_MOUNTAIN++;

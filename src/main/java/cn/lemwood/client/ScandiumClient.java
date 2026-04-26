@@ -26,6 +26,7 @@ public class ScandiumClient implements ClientModInitializer {
 
     public static boolean debugCachedUnderground = false;
     public static int debugCachedSurfaceY = 0;
+    public static boolean isDebugHudOpen = false;
 
     private static boolean irisApiResolved = false;
     private static MethodHandle irisIsShadowPassHandle;
@@ -78,8 +79,9 @@ public class ScandiumClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ScandiumConfig.load();
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (!ScandiumConfig.getInstance().debugMode || client.player == null) {
+            if (!isDebugHudOpen || client.player == null) {
                 TOTAL_CHECKED = 0;
                 CULLED_FOV = 0;
                 CULLED_VERTICAL = 0;
@@ -88,6 +90,7 @@ public class ScandiumClient implements ClientModInitializer {
                 CULLED_BACK = 0;
                 CULLED_COUNT = 0;
             }
+            isDebugHudOpen = false;
         });
     }
 }
