@@ -28,11 +28,24 @@ public class CullingUtils {
     private static native int nativeGetCachedTransparency(long key);
     private static native void nativePutCachedTransparency(long key, boolean value);
     private static native void nativeCleanupCaches(int playerChunkX, int playerChunkZ);
+    private static native void nativeUpdateFrameState(
+        double camX, double camY, double camZ,
+        double lookX, double lookY, double lookZ,
+        double fovCos, boolean isUnderground, boolean isNether, boolean hasCeiling,
+        int reservedHeight, boolean fovEnabled, boolean mountainEnabled, boolean verticalEnabled,
+        boolean aggressiveVertical
+    );
+    private static native int nativeShouldCull(
+        double minX, double minY, double minZ,
+        double maxX, double maxY, double maxZ,
+        int chunkX, int chunkZ
+    );
+
+    private static final ThreadLocal<BlockPos.Mutable> MUTABLE_POS = ThreadLocal.withInitial(BlockPos.Mutable::new);
 
     private static ClientWorld cachedWorld;
     private static long lastCacheTime = -1;
     private static int cachedPlayerSurfaceY;
-    private static int cachedPlayerCeilingY;
     private static boolean cachedPlayerUnderground;
     private static double cachedCameraX, cachedCameraY, cachedCameraZ;
     private static Vec3d cachedLookVector;
@@ -45,10 +58,7 @@ public class CullingUtils {
     private static boolean cacheValid = false;
     private static boolean prevCachedPlayerUnderground = false;
     private static int undergroundTransitionCounter = 0;
-
     private static int cacheCleanCounter = 0;
-    private static final int MAX_TRANSPARENCY_CACHE_SIZE = 4096;
-    private static final int MAX_HEIGHT_CACHE_SIZE = 1024;
 
     static {
         cachedLookVector = new Vec3d(0, 0, 1);
@@ -146,7 +156,6 @@ public class CullingUtils {
 
             if (isNether) {
                 cachedPlayerUnderground = true;
-                cachedPlayerCeilingY = 120;
             }
 
             int renderDistance = client.options.getClampedViewDistance();
@@ -169,6 +178,15 @@ public class CullingUtils {
 
             double halfFovRad = Math.toRadians(totalFov / 2.0);
             fovCosineThreshold = Math.cos(halfFovRad);
+
+            // 同步状态到 Rust
+            nativeUpdateFrameState(
+                cameraX, cameraY, cameraZ,
+                cachedLookVector.x, cachedLookVector.y, cachedLookVector.z,
+                fovCosineThreshold, cachedPlayerUnderground, isNether, hasCeiling,
+                cachedReservedHeight, config.fovCullingEnabled, config.aggressiveMountainCulling, 
+                config.enabled, config.aggressiveVerticalCulling
+            );
 
             if (config.debugMode) {
                 ScandiumClient.debugCachedSurfaceY = cachedPlayerSurfaceY;
@@ -198,148 +216,31 @@ public class CullingUtils {
             }
         }
 
-        if (config.fovCullingEnabled) {
-            Vec3d look = cachedLookVector;
-            double centerX = box.minX + 8.0;
-            double centerY = box.minY + 8.0;
-            double centerZ = box.minZ + 8.0;
+        // 调用 Rust 端的核心剔除逻辑
+        int cullResult = nativeShouldCull(
+            box.minX, box.minY, box.minZ,
+            box.maxX, box.maxY, box.maxZ,
+            chunkX, chunkZ
+        );
 
-            double dx_chunk = centerX - cameraX;
-            double dy_chunk = centerY - cameraY;
-            double dz_chunk = centerZ - cameraZ;
-            double distSq = dx_chunk*dx_chunk + dy_chunk*dy_chunk + dz_chunk*dz_chunk;
-
-            double minFovDistSq = cachedPlayerUnderground ? 256 : 400;
-
-            if (distSq > minFovDistSq) {
-                double invDist = 1.0 / Math.sqrt(distSq);
-                double dot = (look.x * dx_chunk + look.y * dy_chunk + look.z * dz_chunk) * invDist;
-
-                double currentThreshold = fovCosineThreshold;
-                if (cachedPlayerUnderground && config.aggressiveVerticalCulling) {
-                    double tightenedFov = config.fovAngle + 4.0;
-                    currentThreshold = Math.cos(Math.toRadians(tightenedFov / 2.0));
-                }
-
-                if (dot < currentThreshold) {
-                    if (config.debugMode) {
-                        ScandiumClient.CULLED_COUNT++;
-                        ScandiumClient.CULLED_FOV++;
-                    }
-                    return true;
-                }
+        if (cullResult != 0) {
+            if (config.debugMode) {
+                ScandiumClient.CULLED_COUNT++;
+                if (cullResult == 1) ScandiumClient.CULLED_FOV++;
+                else if (cullResult == 2) ScandiumClient.CULLED_MOUNTAIN++;
+                else if (cullResult == 3) ScandiumClient.CULLED_VERTICAL++;
             }
+            return true;
         }
 
+        // 确保高度图缓存存在（Rust 端依赖此缓存进行剔除判断）
         long key = ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
-        int surfaceY = nativeGetCachedHeight(key);
-        if (surfaceY == -1) {
-            surfaceY = getReliableSurfaceY(client.world, (chunkX << 4) + 8, (chunkZ << 4) + 8);
+        if (nativeGetCachedHeight(key) == -1) {
+            int surfaceY = getReliableSurfaceY(client.world, (chunkX << 4) + 8, (chunkZ << 4) + 8);
             nativePutCachedHeight(key, surfaceY);
         }
 
-        if (config.aggressiveMountainCulling) {
-            if (isNether || (hasCeiling && cameraY < 120)) {
-                if (cameraY < 110 && box.minY > 128) {
-                    markCulled(config, "mountain");
-                    return true;
-                }
-            } else if (cachedPlayerUnderground) {
-                if (box.minY > (double) (surfaceY + 8)) {
-                    double dx_mountain = (box.minX + 8.0) - cameraX;
-                    double dz_mountain = (box.minZ + 8.0) - cameraZ;
-                    double dy_mountain = (box.minY + 8.0) - cameraY;
-                    if (dx_mountain * dx_mountain + dz_mountain * dz_mountain > 1024) {
-                        Vec3d look = cachedLookVector;
-                        double dist = Math.sqrt(dx_mountain * dx_mountain + dy_mountain * dy_mountain + dz_mountain * dz_mountain);
-                        if (dist > 0.1) {
-                            double dot = (look.x * dx_mountain + look.y * dy_mountain + look.z * dz_mountain) / dist;
-                            if (dot >= fovCosineThreshold) return false;
-                        }
-
-                        markCulled(config, "mountain");
-                        return true;
-                    }
-                }
-            }
-        }
-
-        if (isNether) {
-            double diffY = Math.abs((box.minY + 8.0) - cameraY);
-            if (diffY > (double) (cachedReservedHeight + 32)) {
-                markCulled(config, "vertical");
-                return true;
-            }
-            return false;
-        }
-
-        if (!cachedPlayerUnderground) {
-            int verticalOffset = config.aggressiveVerticalCulling ? 32 : 64;
-            if (box.maxY < (double) (surfaceY - verticalOffset) && box.maxY < cameraY - verticalOffset) {
-                markCulled(config, "vertical");
-                return true;
-            }
-        } else {
-            if (config.undergroundHorizontalCulling) {
-                double dx_u = (box.minX + 8.0) - cameraX;
-                double dz_u = (box.minZ + 8.0) - cameraZ;
-                double horizontalDistSq = dx_u * dx_u + dz_u * dz_u;
-                double maxHorizontalDist = config.undergroundHorizontalDistance << 4;
-
-                if (horizontalDistSq > maxHorizontalDist * maxHorizontalDist) {
-                    Vec3d look = cachedLookVector;
-
-                    double dy_u = (box.minY + 8.0) - cameraY;
-                    double dist = Math.sqrt(horizontalDistSq + dy_u * dy_u);
-                    double dot = 0;
-                    if (dist > 0.1) {
-                        dot = (look.x * dx_u + look.y * dy_u + look.z * dz_u) / dist;
-                    }
-
-                    if (dot >= fovCosineThreshold) {
-                    } else {
-                        markCulled(config, "mountain");
-                        return true;
-                    }
-                }
-            }
-
-            double diffY = Math.abs((box.minY + 8.0) - cameraY);
-            int undergroundOffset = config.aggressiveVerticalCulling ? (cachedReservedHeight / 2) : cachedReservedHeight;
-            if (diffY > (double) undergroundOffset) {
-                double dx_v = (box.minX + 8.0) - cameraX;
-                double dz_v = (box.minZ + 8.0) - cameraZ;
-                double dy_v = (box.minY + 8.0) - cameraY;
-                Vec3d look = cachedLookVector;
-                double dist = Math.sqrt(dx_v * dx_v + dy_v * dy_v + dz_v * dz_v);
-                if (dist > 0.1) {
-                    double dot = (look.x * dx_v + look.y * dy_v + look.z * dz_v) / dist;
-                    if (dot >= fovCosineThreshold) {
-                    } else {
-                        markCulled(config, "vertical");
-                        return true;
-                    }
-                }
-            }
-            int surfaceOffset = config.aggressiveVerticalCulling ? -8 : 0;
-            if (cameraY < (double) (surfaceY - 16) && box.minY > (double) (surfaceY + surfaceOffset)) {
-                markCulled(config, "vertical");
-                return true;
-            }
-        }
-
         return false;
-    }
-
-    private static void markCulled(ScandiumConfig config, String type) {
-        if (config.debugMode) {
-            ScandiumClient.CULLED_COUNT++;
-            if ("mountain".equals(type)) {
-                ScandiumClient.CULLED_MOUNTAIN++;
-            } else if ("vertical".equals(type)) {
-                ScandiumClient.CULLED_VERTICAL++;
-            }
-        }
     }
 
     private static boolean isChunkTransparentFast(ClientWorld world, int cx, int cy, int cz) {
@@ -355,7 +256,7 @@ public class CullingUtils {
         int startY = cy << 4;
         int startZ = cz << 4;
 
-        BlockPos.Mutable pos = new BlockPos.Mutable();
+        BlockPos.Mutable pos = MUTABLE_POS.get();
         int[] samples = {0, 7, 15};
         outer:
         for (int y : samples) {
@@ -374,6 +275,9 @@ public class CullingUtils {
         nativePutCachedTransparency(key, transparent);
         return transparent;
     }
+
+    // 移除不再需要的 markCulled 方法，逻辑已迁移至 Rust 并通过 cullResult 返回
+
 
     public static int getReliableSurfaceY(ClientWorld world, int x, int z) {
         if (world.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) == null) {

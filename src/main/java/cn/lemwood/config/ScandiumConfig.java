@@ -28,12 +28,17 @@ public class ScandiumConfig {
 
     private static ScandiumConfig instance;
     private static long lastConfigTimestamp = -1;
+    private static int checkCounter = 0;
 
     public static ScandiumConfig getInstance() {
         if (instance == null) {
             load();
         } else {
-            reloadIfChanged();
+            // 每隔 200 次调用检查一次文件修改，避免在渲染循环中频繁触发 I/O
+            if (++checkCounter >= 200) {
+                checkCounter = 0;
+                reloadIfChanged();
+            }
         }
         return instance;
     }

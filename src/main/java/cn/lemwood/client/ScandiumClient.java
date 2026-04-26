@@ -4,11 +4,13 @@ import cn.lemwood.config.ScandiumConfig;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.text.Text;
+import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 
 public class ScandiumClient implements ClientModInitializer {
 
@@ -25,11 +27,9 @@ public class ScandiumClient implements ClientModInitializer {
     public static int debugCachedSurfaceY = 0;
 
     private static boolean irisApiResolved = false;
-    private static Object irisApiInstance;
-    private static Method irisIsShadowPassMethod;
-    private static int cachedShadowFrameIndex = Integer.MIN_VALUE;
+    private static MethodHandle irisIsShadowPassHandle;
+    private static int cachedShadowFrameIndex = -1;
     private static boolean cachedShadowPass = false;
-    private static long lastShadowQueryTime = -1;
 
     public static boolean isIrisShadowPass(int frameIndex) {
         if (!IRIS_LOADED) return false;
@@ -44,32 +44,33 @@ public class ScandiumClient implements ClientModInitializer {
 
     public static boolean isRenderingShadowPass() {
         if (!IRIS_LOADED) return false;
-        long time = System.currentTimeMillis();
-        if (time == lastShadowQueryTime) {
-            return cachedShadowPass;
-        }
-        lastShadowQueryTime = time;
-        cachedShadowPass = queryIrisShadowPass();
-        return cachedShadowPass;
+        // 直接查询 Iris API，MethodHandle 性能接近原生调用
+        return queryIrisShadowPass();
     }
 
     private static boolean queryIrisShadowPass() {
         try {
             if (!irisApiResolved) {
-                irisApiResolved = true;
-                Class<?> irisApiClass = Class.forName("net.irisshaders.iris.api.v0.IrisApi");
-                Method getInstance = irisApiClass.getMethod("getInstance");
-                irisApiInstance = getInstance.invoke(null);
-                irisIsShadowPassMethod = irisApiClass.getMethod("isRenderingShadowPass");
+                resolveIrisApi();
             }
-            if (irisApiInstance == null || irisIsShadowPassMethod == null) return false;
-            Object result = irisIsShadowPassMethod.invoke(irisApiInstance);
-            return result instanceof Boolean && (Boolean) result;
+            if (irisIsShadowPassHandle == null) return false;
+            return (boolean) irisIsShadowPassHandle.invokeExact();
         } catch (Throwable ignored) {
-            irisApiResolved = true;
-            irisApiInstance = null;
-            irisIsShadowPassMethod = null;
             return false;
+        }
+    }
+
+    private static void resolveIrisApi() {
+        irisApiResolved = true;
+        try {
+            Class<?> irisApiClass = Class.forName("net.irisshaders.iris.api.v0.IrisApi");
+            MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+            MethodHandle getInstance = lookup.findStatic(irisApiClass, "getInstance", MethodType.methodType(irisApiClass));
+            Object apiInstance = getInstance.invoke();
+            irisIsShadowPassHandle = lookup.findVirtual(irisApiClass, "isRenderingShadowPass", MethodType.methodType(boolean.class))
+                                           .bindTo(apiInstance);
+        } catch (Throwable e) {
+            LOGGER.error("Failed to resolve Iris API handles", e);
         }
     }
 
