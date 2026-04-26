@@ -190,7 +190,6 @@ public class CullingUtils {
 
         if (config.debugMode) {
             ScandiumClient.TOTAL_CHECKED++;
-            ScandiumClient.HUD_TOTAL_CHECKED++;
         }
 
         if (config.transparencyAwareness) {
@@ -226,8 +225,6 @@ public class CullingUtils {
                     if (config.debugMode) {
                         ScandiumClient.CULLED_COUNT++;
                         ScandiumClient.CULLED_FOV++;
-                        ScandiumClient.HUD_CULLED_COUNT++;
-                        ScandiumClient.HUD_CULLED_FOV++;
                     }
                     return true;
                 }
@@ -337,13 +334,10 @@ public class CullingUtils {
     private static void markCulled(ScandiumConfig config, String type) {
         if (config.debugMode) {
             ScandiumClient.CULLED_COUNT++;
-            ScandiumClient.HUD_CULLED_COUNT++;
             if ("mountain".equals(type)) {
                 ScandiumClient.CULLED_MOUNTAIN++;
-                ScandiumClient.HUD_CULLED_MOUNTAIN++;
             } else if ("vertical".equals(type)) {
                 ScandiumClient.CULLED_VERTICAL++;
-                ScandiumClient.HUD_CULLED_VERTICAL++;
             }
         }
     }

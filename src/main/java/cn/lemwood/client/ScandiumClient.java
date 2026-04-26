@@ -21,18 +21,8 @@ public class ScandiumClient implements ClientModInitializer {
     public static int CULLED_MOUNTAIN = 0;
     public static int TOTAL_CHECKED = 0;
 
-    // HUD specific counters
-    public static int HUD_CULLED_COUNT = 0;
-    public static int HUD_CULLED_VERTICAL = 0;
-    public static int HUD_CULLED_BACK = 0;
-    public static int HUD_CULLED_FOV = 0;
-    public static int HUD_CULLED_MOUNTAIN = 0;
-    public static int HUD_TOTAL_CHECKED = 0;
-
     public static boolean debugCachedUnderground = false;
     public static int debugCachedSurfaceY = 0;
-
-    private int tickCounter = 0;
 
     private static boolean irisApiResolved = false;
     private static Object irisApiInstance;
@@ -87,39 +77,13 @@ public class ScandiumClient implements ClientModInitializer {
     public void onInitializeClient() {
         ScandiumConfig.load();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (ScandiumConfig.getInstance().debugMode && client.player != null) {
-                tickCounter++;
-                if (tickCounter >= 20) {
-                    String text = "Scandium | " + 
-                        "Total: " + TOTAL_CHECKED + " | " +
-                        "FOV: " + CULLED_FOV + " | " +
-                        "Vert: " + CULLED_VERTICAL + " | " +
-                        "Mtn: " + CULLED_MOUNTAIN + " | " +
-                        "Y: " + (int)client.player.getY() + " (S:" + debugCachedSurfaceY + ") | " +
-                        "UG: " + debugCachedUnderground;
-                    client.player.sendMessage(Text.literal(text), true);
-                    
-                    tickCounter = 0;
-                    TOTAL_CHECKED = 0;
-                    CULLED_FOV = 0;
-                    CULLED_VERTICAL = 0;
-                    CULLED_MOUNTAIN = 0;
-                    CULLED_BACK = 0;
-                    CULLED_COUNT = 0;
-                }
-            } else {
+            if (!ScandiumConfig.getInstance().debugMode || client.player == null) {
                 TOTAL_CHECKED = 0;
                 CULLED_FOV = 0;
                 CULLED_VERTICAL = 0;
                 CULLED_MOUNTAIN = 0;
                 CULLED_BACK = 0;
                 CULLED_COUNT = 0;
-                HUD_TOTAL_CHECKED = 0;
-                HUD_CULLED_FOV = 0;
-                HUD_CULLED_VERTICAL = 0;
-                HUD_CULLED_MOUNTAIN = 0;
-                HUD_CULLED_BACK = 0;
-                HUD_CULLED_COUNT = 0;
             }
         });
     }

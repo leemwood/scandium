@@ -9,7 +9,8 @@
     "MixinGraphOcclusionCuller",
     "MixinOctreeBranch",
     "MixinOctreeLeaf",
-    "CameraAccessor"
+    "CameraAccessor",
+    "MixinDebugHud"
   ],
   "injectors": {
     "defaultRequire": 1
